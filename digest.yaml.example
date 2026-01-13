@@ -1,0 +1,58 @@
+# Digest Configuration
+# Copy to ~/.config/digest/digest.yaml
+
+# Theme: synthwave, nord, dracula
+theme: synthwave
+
+# Show digest when terminal opens
+show_at_startup: true
+
+# Maximum items per section
+max_items_per_section: 5
+
+# Data sources
+sources:
+  # Hacker News top stories
+  hackernews:
+    enabled: true
+    settings:
+      max: 8  # Number of stories to show
+
+  # RSS feeds (coming soon)
+  rss:
+    enabled: false
+    settings:
+      feeds:
+        - name: "TechCrunch"
+          url: "https://techcrunch.com/feed/"
+          max: 5
+        - name: "Product Hunt"
+          url: "https://www.producthunt.com/feed"
+          max: 5
+
+  # GitHub (coming soon)
+  # github:
+  #   enabled: false
+  #   settings:
+  #     repos:
+  #       - owner/repo1
+  #       - owner/repo2
+  #     show:
+  #       - prs_to_review
+  #       - mentioned
+  #       - assigned_issues
+
+  # Linear (coming soon)
+  # linear:
+  #   enabled: false
+  #   settings:
+  #     team: PROD
+  #     show:
+  #       - assigned
+  #       - needs_product_label
+
+  # Google Calendar (coming soon)
+  # calendar:
+  #   enabled: false
+  #   settings:
+  #     lookahead: 24h
