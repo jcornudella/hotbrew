@@ -1,5 +1,5 @@
-# Digest Configuration
-# Copy to ~/.config/digest/digest.yaml
+# hotbrew Configuration
+# Copy to ~/.config/hotbrew/hotbrew.yaml
 
 # Theme: synthwave, nord, dracula
 theme: synthwave

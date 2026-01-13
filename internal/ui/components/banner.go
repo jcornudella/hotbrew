@@ -3,8 +3,8 @@ package components
 import (
 	"strings"
 
-	"github.com/jcornudella/digest/internal/ui"
-	"github.com/jcornudella/digest/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/internal/ui"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
 )
 
 // ASCII art banner

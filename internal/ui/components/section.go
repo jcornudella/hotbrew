@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jcornudella/digest/internal/ui"
-	"github.com/jcornudella/digest/internal/ui/theme"
-	"github.com/jcornudella/digest/pkg/source"
+	"github.com/jcornudella/hotbrew/internal/ui"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/pkg/source"
 )
 
 // SectionHeader renders a section header with icon and gradient title

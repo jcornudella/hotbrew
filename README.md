@@ -1,43 +1,47 @@
-# Digest
+# ☕ hotbrew
 
-Your personalized terminal newsletter. A beautiful CLI tool that aggregates information from multiple sources into a single, scannable digest.
+**Your morning, piping hot.**
 
-![Digest Demo](docs/demo.gif)
+A beautiful terminal newsletter that aggregates your daily information into a single, scannable digest.
+
+![CI](https://github.com/jcornudella/hotbrew/workflows/CI/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- **Beautiful UI** - Gradient text, themed colors, and smooth interactions
-- **Multiple themes** - Synthwave (default), Nord, Dracula
+- **Beautiful UI** - Gradient text, themed colors, smooth interactions
+- **Multiple themes** - Synthwave (neon), Nord (arctic), Dracula (dark)
 - **Pluggable sources** - Easy to add new data sources
-- **Keyboard-driven** - Navigate and act without touching the mouse
+- **Keyboard-driven** - Navigate and act without the mouse
 - **Fast** - Single binary, instant startup
 
 ## Installation
 
 ```bash
 # With Go
-go install github.com/jcornudella/digest/cmd/digest@latest
+go install github.com/jcornudella/hotbrew/cmd/hotbrew@latest
 
-# Or build from source
-git clone https://github.com/jcornudella/digest
-cd digest
-go build -o digest ./cmd/digest
+# Build from source
+git clone https://github.com/jcornudella/hotbrew.git
+cd hotbrew
+make build
+./hotbrew
 ```
 
 ## Usage
 
 ```bash
 # Show your digest
-digest
+hotbrew
 
 # Initialize config
-digest config --init
+hotbrew config --init
 
 # List themes
-digest themes
+hotbrew themes
 
 # Show help
-digest help
+hotbrew help
 ```
 
 ## Keyboard Shortcuts
@@ -57,9 +61,10 @@ digest help
 
 ## Configuration
 
-Config file location: `~/.config/digest/digest.yaml`
+Config file: `~/.config/hotbrew/hotbrew.yaml`
 
 ```yaml
+# Theme: synthwave, nord, dracula
 theme: synthwave
 
 sources:
@@ -93,19 +98,27 @@ type Source interface {
 }
 ```
 
-See `internal/sources/hackernews/hackernews.go` for an example.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Roadmap
 
 - [ ] GitHub integration (PRs, issues, notifications)
 - [ ] Linear integration
-- [ ] Google Calendar integration
-- [ ] Slack integration
+- [ ] Google Calendar
+- [ ] Slack highlights
 - [ ] RSS feeds
 - [ ] AI summarization
 - [ ] Custom themes
 - [ ] Plugin system
 
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE)
+
+---
+
+Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).

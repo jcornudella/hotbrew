@@ -3,7 +3,7 @@ package components
 import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jcornudella/digest/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
 )
 
 // Spinner styles for different states

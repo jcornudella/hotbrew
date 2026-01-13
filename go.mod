@@ -1,4 +1,4 @@
-module github.com/jcornudella/digest
+module github.com/jcornudella/hotbrew
 
 go 1.21
 

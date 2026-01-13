@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jcornudella/digest/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
 )
 
 // KeyBinding represents a keyboard shortcut

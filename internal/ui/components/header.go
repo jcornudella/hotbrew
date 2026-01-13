@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jcornudella/digest/internal/ui"
-	"github.com/jcornudella/digest/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/internal/ui"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
 )
 
 // Header renders the main digest header with date and greeting

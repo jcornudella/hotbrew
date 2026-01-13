@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jcornudella/digest/pkg/source"
+	"github.com/jcornudella/hotbrew/pkg/source"
 )
 
 const (

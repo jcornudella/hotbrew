@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/jcornudella/digest/pkg/source"
+	"github.com/jcornudella/hotbrew/pkg/source"
 	"github.com/mmcdole/gofeed"
 )
 

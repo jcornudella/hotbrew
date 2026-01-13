@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jcornudella/digest/internal/ui/theme"
-	"github.com/jcornudella/digest/pkg/source"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/pkg/source"
 )
 
 // Item renders a single item in the digest

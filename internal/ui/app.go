@@ -12,11 +12,11 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jcornudella/digest/internal/config"
-	"github.com/jcornudella/digest/internal/sources/hackernews"
-	"github.com/jcornudella/digest/internal/ui/components"
-	"github.com/jcornudella/digest/internal/ui/theme"
-	"github.com/jcornudella/digest/pkg/source"
+	"github.com/jcornudella/hotbrew/internal/config"
+	"github.com/jcornudella/hotbrew/internal/sources/hackernews"
+	"github.com/jcornudella/hotbrew/internal/ui/components"
+	"github.com/jcornudella/hotbrew/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/pkg/source"
 )
 
 // State represents the app state

@@ -1,7 +1,7 @@
 .PHONY: build run clean install test lint fmt help
 
 # Binary name
-BINARY=digest
+BINARY=hotbrew
 VERSION?=0.1.0
 
 # Build flags
@@ -9,7 +9,7 @@ LDFLAGS=-ldflags "-s -w -X main.Version=$(VERSION)"
 
 ## build: Build the binary
 build:
-	go build $(LDFLAGS) -o $(BINARY) ./cmd/digest
+	go build $(LDFLAGS) -o $(BINARY) ./cmd/hotbrew
 
 ## run: Build and run
 run: build
@@ -17,7 +17,7 @@ run: build
 
 ## install: Install to $GOPATH/bin
 install:
-	go install $(LDFLAGS) ./cmd/digest
+	go install $(LDFLAGS) ./cmd/hotbrew
 
 ## clean: Remove build artifacts
 clean:
@@ -45,11 +45,11 @@ deps:
 ## release: Build for multiple platforms
 release: clean
 	mkdir -p dist
-	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-amd64 ./cmd/digest
-	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-arm64 ./cmd/digest
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-amd64 ./cmd/digest
-	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-arm64 ./cmd/digest
-	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-windows-amd64.exe ./cmd/digest
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-amd64 ./cmd/hotbrew
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY)-darwin-arm64 ./cmd/hotbrew
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-amd64 ./cmd/hotbrew
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY)-linux-arm64 ./cmd/hotbrew
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY)-windows-amd64.exe ./cmd/hotbrew
 
 ## help: Show this help
 help:

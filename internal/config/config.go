@@ -1,4 +1,4 @@
-// Package config handles digest configuration
+// Package config handles hotbrew configuration
 package config
 
 import (
@@ -93,12 +93,12 @@ func Save(cfg *Config) error {
 func getConfigPath() string {
 	// Check XDG config first
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "digest", "digest.yaml")
+		return filepath.Join(xdg, "hotbrew", "hotbrew.yaml")
 	}
 
 	// Fall back to ~/.config
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "digest", "digest.yaml")
+	return filepath.Join(home, ".config", "hotbrew", "hotbrew.yaml")
 }
 
 // Init creates a default config file if it doesn't exist
