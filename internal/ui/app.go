@@ -13,7 +13,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jcornudella/hotbrew/internal/config"
+	"github.com/jcornudella/hotbrew/internal/curation"
+	"github.com/jcornudella/hotbrew/internal/sinks"
+	"github.com/jcornudella/hotbrew/internal/sources/github"
 	"github.com/jcornudella/hotbrew/internal/sources/hackernews"
+	"github.com/jcornudella/hotbrew/internal/sources/hnsearch"
+	"github.com/jcornudella/hotbrew/internal/store"
 	"github.com/jcornudella/hotbrew/internal/ui/components"
 	"github.com/jcornudella/hotbrew/internal/ui/theme"
 	"github.com/jcornudella/hotbrew/pkg/source"
@@ -35,6 +40,7 @@ type Model struct {
 	state    State
 	sections []*source.Section
 	err      error
+	store    *store.Store
 
 	// Navigation
 	sectionIdx int
@@ -42,9 +48,11 @@ type Model struct {
 	expanded   bool
 
 	// UI
-	spinner spinner.Model
-	width   int
-	height  int
+	spinner    spinner.Model
+	width      int
+	height     int
+	animFrame  int
+	statusMsg  string
 }
 
 // Messages
@@ -57,14 +65,30 @@ type errorMsg struct {
 }
 
 type tickMsg time.Time
+type animTickMsg time.Time
 
-// NewModel creates a new application model
-func NewModel(cfg *config.Config) Model {
+// NewModel creates a new application model.
+// If st is non-nil, the TUI loads from the curation engine.
+func NewModel(cfg *config.Config, st ...*store.Store) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff6ad5"))
 
-	return Model{
+	// Register custom theme if configured
+	if cfg.Theme == "custom" && cfg.CustomTheme != nil {
+		theme.RegisterCustom("custom", theme.CustomColors{
+			Primary:        cfg.CustomTheme.Primary,
+			Secondary:      cfg.CustomTheme.Secondary,
+			Accent:         cfg.CustomTheme.Accent,
+			Muted:          cfg.CustomTheme.Muted,
+			Background:     cfg.CustomTheme.Background,
+			Text:           cfg.CustomTheme.Text,
+			TextMuted:      cfg.CustomTheme.TextMuted,
+			HeaderGradient: cfg.CustomTheme.HeaderGradient,
+		})
+	}
+
+	m := Model{
 		cfg:     cfg,
 		theme:   theme.Get(cfg.Theme),
 		state:   StateLoading,
@@ -72,14 +96,49 @@ func NewModel(cfg *config.Config) Model {
 		width:   80,
 		height:  24,
 	}
+	if len(st) > 0 && st[0] != nil {
+		m.store = st[0]
+	}
+	return m
 }
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
+	loadCmd := fetchSections(m.cfg)
+	if m.store != nil {
+		loadCmd = loadFromStore(m.store, m.cfg)
+	}
 	return tea.Batch(
 		m.spinner.Tick,
-		fetchSections(m.cfg),
+		loadCmd,
+		animTick(),
 	)
+}
+
+// loadFromStore generates a digest from the store and converts to sections.
+func loadFromStore(st *store.Store, cfg *config.Config) tea.Cmd {
+	return func() tea.Msg {
+		engine := curation.NewEngine(st)
+		digest, err := engine.GenerateDigest(cfg.GetDigestWindow(), cfg.GetDigestMax(), "Hotbrew Digest")
+		if err != nil || digest == nil || len(digest.Items) == 0 {
+			// Fall back to live fetch if store is empty.
+			return fetchSections(cfg)()
+		}
+
+		sections := sinks.DigestToSections(digest)
+		if len(sections) == 0 {
+			return fetchSections(cfg)()
+		}
+
+		return sectionsLoadedMsg{sections: sections}
+	}
+}
+
+// animTick returns a command that ticks the animation
+func animTick() tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+		return animTickMsg(t)
+	})
 }
 
 // fetchSections fetches data from all enabled sources
@@ -102,7 +161,33 @@ func fetchSections(cfg *config.Config) tea.Cmd {
 			}
 		}
 
-		// Add more sources here as they're implemented...
+		// Claude Code & Vibe Coding search
+		vibeSearch := hnsearch.New(
+			"Claude Code & Vibe Coding",
+			[]string{"Claude Code", "vibe coding", "AI coding assistant", "Anthropic Claude"},
+			"🤖",
+		)
+		vibeSection, vibeErr := vibeSearch.Fetch(ctx, source.Config{
+			Enabled: true,
+			Settings: map[string]any{"max": 8},
+		})
+		if vibeErr == nil && vibeSection != nil && len(vibeSection.Items) > 0 {
+			sections = append(sections, vibeSection)
+		}
+
+		// GitHub trending AI/coding repos
+		ghTrending := github.New(
+			"GitHub Trending",
+			[]string{"ai", "llm", "machine-learning", "gpt", "claude"},
+			"🐙",
+		)
+		ghSection, ghErr := ghTrending.Fetch(ctx, source.Config{
+			Enabled:  true,
+			Settings: map[string]any{"max": 6},
+		})
+		if ghErr == nil && ghSection != nil && len(ghSection.Items) > 0 {
+			sections = append(sections, ghSection)
+		}
 
 		return sectionsLoadedMsg{sections: sections}
 	}
@@ -133,6 +218,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err
 		m.state = StateError
 		return m, nil
+
+	case animTickMsg:
+		m.animFrame++
+		return m, animTick()
 	}
 
 	return m, nil
@@ -167,9 +256,58 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case "s":
+		// Save item
+		if m.store != nil {
+			if item := m.selectedItem(); item != nil {
+				id := item.ID
+				if meta, ok := item.Metadata["trss_id"].(string); ok {
+					id = meta
+				}
+				if err := m.store.MarkSaved(id); err == nil {
+					m.statusMsg = "★ Saved"
+				}
+			}
+		}
+
+	case "u":
+		// Toggle read/unread
+		if m.store != nil {
+			if item := m.selectedItem(); item != nil {
+				id := item.ID
+				if meta, ok := item.Metadata["trss_id"].(string); ok {
+					id = meta
+				}
+				state := m.store.GetState(id)
+				if state == "unread" {
+					m.store.MarkRead(id)
+					m.statusMsg = "✓ Marked read"
+				} else {
+					m.store.MarkUnread(id)
+					m.statusMsg = "○ Marked unread"
+				}
+			}
+		}
+
+	case "m":
+		// Mute domain
+		if m.store != nil {
+			if item := m.selectedItem(); item != nil && item.URL != "" {
+				domain := extractItemDomain(item.URL)
+				if domain != "" {
+					m.store.AddRule("mute_domain", domain, "")
+					m.statusMsg = fmt.Sprintf("🔇 Muted %s", domain)
+				}
+			}
+		}
+
 	case "r":
 		// Refresh
 		m.state = StateLoading
+		m.statusMsg = ""
+		if m.store != nil {
+			return m, loadFromStore(m.store, m.cfg)
+		}
 		return m, fetchSections(m.cfg)
 
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
@@ -244,8 +382,8 @@ func (m Model) selectedItem() *source.Item {
 func (m Model) View() string {
 	var b strings.Builder
 
-	// Header
-	b.WriteString(components.Header(m.theme, m.width))
+	// Animated Header
+	b.WriteString(components.AnimatedHeader(m.theme, m.width, m.animFrame))
 	b.WriteString("\n\n")
 
 	switch m.state {
@@ -257,6 +395,15 @@ func (m Model) View() string {
 
 	case StateReady:
 		b.WriteString(m.renderSections())
+	}
+
+	// Status message
+	if m.statusMsg != "" {
+		statusStyle := lipgloss.NewStyle().
+			Foreground(m.theme.Accent()).
+			Padding(0, 2)
+		b.WriteString(statusStyle.Render(m.statusMsg))
+		b.WriteString("\n")
 	}
 
 	// Footer
@@ -296,11 +443,30 @@ func (m Model) renderSections() string {
 		}
 
 		// Render section with proper selection state
-		rendered := components.Section(section, m.theme, m.width, selectedIdx, isSelected)
+		rendered := components.Section(section, m.theme, m.width, selectedIdx, isSelected, m.expanded)
 		parts = append(parts, rendered)
 	}
 
 	return strings.Join(parts, "")
+}
+
+// extractItemDomain gets the hostname from a URL.
+func extractItemDomain(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	// Simple extraction without importing net/url to avoid bloat.
+	// Find the host part between :// and the next /
+	idx := strings.Index(rawURL, "://")
+	if idx < 0 {
+		return ""
+	}
+	host := rawURL[idx+3:]
+	if slash := strings.Index(host, "/"); slash >= 0 {
+		host = host[:slash]
+	}
+	host = strings.TrimPrefix(host, "www.")
+	return host
 }
 
 // openURL opens a URL in the default browser

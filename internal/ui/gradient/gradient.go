@@ -1,4 +1,4 @@
-package ui
+package gradient
 
 import (
 	"fmt"
@@ -38,8 +38,8 @@ func interpolateColor(c1, c2 string, t float64) string {
 	return rgbToHex(r, g, b)
 }
 
-// GradientText renders text with a gradient effect across characters
-func GradientText(text string, colors []string) string {
+// Text renders text with a gradient effect across characters
+func Text(text string, colors []string) string {
 	if len(colors) == 0 {
 		return text
 	}
@@ -82,8 +82,8 @@ func GradientText(text string, colors []string) string {
 	return result
 }
 
-// GradientBold renders bold text with a gradient effect
-func GradientBold(text string, colors []string) string {
+// Bold renders bold text with a gradient effect
+func Bold(text string, colors []string) string {
 	if len(colors) == 0 {
 		return lipgloss.NewStyle().Bold(true).Render(text)
 	}

@@ -1,4 +1,4 @@
-.PHONY: build run clean install test lint fmt help
+.PHONY: build run clean install install-local serve test lint fmt help
 
 # Binary name
 BINARY=hotbrew
@@ -18,6 +18,16 @@ run: build
 ## install: Install to $GOPATH/bin
 install:
 	go install $(LDFLAGS) ./cmd/hotbrew
+
+## install-local: Build and copy to /usr/local/bin
+install-local: build
+	cp $(BINARY) /usr/local/bin/$(BINARY)
+	@echo "☕ hotbrew installed to /usr/local/bin/hotbrew"
+	@echo "   Run 'hotbrew' to get started!"
+
+## serve: Run the hotbrew web server
+serve: build
+	./$(BINARY) serve
 
 ## clean: Remove build artifacts
 clean:

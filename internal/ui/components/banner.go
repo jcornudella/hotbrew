@@ -3,7 +3,7 @@ package components
 import (
 	"strings"
 
-	"github.com/jcornudella/hotbrew/internal/ui"
+	"github.com/jcornudella/hotbrew/internal/ui/gradient"
 	"github.com/jcornudella/hotbrew/internal/ui/theme"
 )
 
@@ -28,7 +28,7 @@ func Banner(t theme.Theme) string {
 			result = append(result, "")
 			continue
 		}
-		result = append(result, ui.GradientText(line, colors))
+		result = append(result, gradient.Text(line, colors))
 	}
 
 	return strings.Join(result, "\n")
@@ -37,7 +37,7 @@ func Banner(t theme.Theme) string {
 // SmallBanner renders a smaller text banner
 func SmallBanner(t theme.Theme) string {
 	text := "░▒▓ DIGEST ▓▒░"
-	return ui.GradientBold(text, t.HeaderGradient())
+	return gradient.Bold(text, t.HeaderGradient())
 }
 
 // Tagline renders the app tagline

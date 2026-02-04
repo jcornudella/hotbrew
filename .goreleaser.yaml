@@ -52,5 +52,10 @@ brews:
     license: MIT
     install: |
       bin.install "hotbrew"
+    post_install: |
+      ohai "☕ hotbrew installed! Run 'hotbrew' to start."
+    caveats: |
+      To show hotbrew every time you open a terminal:
+        echo 'command -v hotbrew &>/dev/null && hotbrew' >> ~/.zshrc
     test: |
-      system "#{bin}/hotbrew", "--version"
+      system "#{bin}/hotbrew", "version"

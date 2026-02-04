@@ -4,16 +4,37 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 // Config is the main configuration structure
 type Config struct {
-	Theme           string                  `yaml:"theme"`
-	ShowAtStartup   bool                    `yaml:"show_at_startup"`
-	MaxItemsPerSection int                  `yaml:"max_items_per_section"`
-	Sources         map[string]SourceConfig `yaml:"sources"`
+	Theme              string                  `yaml:"theme"`
+	ShowAtStartup      bool                    `yaml:"show_at_startup"`
+	MaxItemsPerSection int                     `yaml:"max_items_per_section"`
+	Sources            map[string]SourceConfig `yaml:"sources"`
+	CustomTheme        *CustomThemeConfig      `yaml:"custom_theme,omitempty"`
+
+	// TRSS settings
+	DBPath        string `yaml:"db_path,omitempty"`
+	SyncInterval  string `yaml:"sync_interval,omitempty"`  // e.g. "15m", "1h"
+	DigestWindow  string `yaml:"digest_window,omitempty"`  // e.g. "24h", "12h"
+	DigestMax     int    `yaml:"digest_max,omitempty"`     // max items in digest
+	StreamLog     string `yaml:"stream_log,omitempty"`     // path to stream.log
+}
+
+// CustomThemeConfig holds custom theme colors
+type CustomThemeConfig struct {
+	Primary        string   `yaml:"primary,omitempty"`
+	Secondary      string   `yaml:"secondary,omitempty"`
+	Accent         string   `yaml:"accent,omitempty"`
+	Muted          string   `yaml:"muted,omitempty"`
+	Background     string   `yaml:"background,omitempty"`
+	Text           string   `yaml:"text,omitempty"`
+	TextMuted      string   `yaml:"text_muted,omitempty"`
+	HeaderGradient []string `yaml:"header_gradient,omitempty"`
 }
 
 // SourceConfig holds configuration for a single source
@@ -111,4 +132,57 @@ func Init() error {
 	}
 
 	return Save(Default())
+}
+
+// GetDBPath returns the database path, with a sensible default.
+func (c *Config) GetDBPath() string {
+	if c.DBPath != "" {
+		return c.DBPath
+	}
+	return filepath.Join(configDir(), "hotbrew.db")
+}
+
+// GetSyncInterval returns the sync interval as a duration.
+func (c *Config) GetSyncInterval() time.Duration {
+	if c.SyncInterval != "" {
+		if d, err := time.ParseDuration(c.SyncInterval); err == nil {
+			return d
+		}
+	}
+	return 15 * time.Minute
+}
+
+// GetDigestWindow returns the digest window as a duration.
+func (c *Config) GetDigestWindow() time.Duration {
+	if c.DigestWindow != "" {
+		if d, err := time.ParseDuration(c.DigestWindow); err == nil {
+			return d
+		}
+	}
+	return 24 * time.Hour
+}
+
+// GetDigestMax returns the max items per digest.
+func (c *Config) GetDigestMax() int {
+	if c.DigestMax > 0 {
+		return c.DigestMax
+	}
+	return 25
+}
+
+// GetStreamLogPath returns the stream log file path.
+func (c *Config) GetStreamLogPath() string {
+	if c.StreamLog != "" {
+		return c.StreamLog
+	}
+	return filepath.Join(configDir(), "stream.log")
+}
+
+// configDir returns the hotbrew config directory.
+func configDir() string {
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "hotbrew")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "hotbrew")
 }

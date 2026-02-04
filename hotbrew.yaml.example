@@ -1,8 +1,24 @@
 # hotbrew Configuration
 # Copy to ~/.config/hotbrew/hotbrew.yaml
 
-# Theme: synthwave, nord, dracula
+# Theme: synthwave, nord, dracula, mocha, ocean, forest, sunset, midnight
+# Or set to "custom" and define your own colors below
 theme: synthwave
+
+# Custom theme colors (only used if theme: custom)
+# All values are hex colors
+# custom_theme:
+#   primary: "#ff6ad5"        # Main accent color
+#   secondary: "#c774e8"      # Secondary accent
+#   accent: "#94d0ff"         # Highlights, links
+#   muted: "#6a6a8a"          # Subtle text, separators
+#   background: "#1a1a2e"     # Background color
+#   text: "#ffffff"           # Main text
+#   text_muted: "#a0a0c0"     # Subtle text
+#   header_gradient:          # Colors for the HOTBREW title gradient
+#     - "#ff6ad5"
+#     - "#c774e8"
+#     - "#94d0ff"
 
 # Show digest when terminal opens
 show_at_startup: true
