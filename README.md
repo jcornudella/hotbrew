@@ -103,6 +103,20 @@ flowchart TD
 - **Curation engine** – Deduplicates, scores, enforces diversity, and builds digests consumed by `hotbrew digest` and the TUI.
 - **Bubble Tea UI** – Timeline layout with theme picker, per-item actions, and live feedback prompts.
 
+## Branding & Optional Assets
+
+The open-source tree intentionally ignores branded art and helper scripts:
+
+- `assets/` holds working PSD/SVG exports or marketing previews—keep your copies locally.
+- `internal/ui/components/logo.png` (and the experimental `logo.go`) stay out of Git so you can drop in any inline logo without publishing it. The ASCII fallback header included in this repo still renders everywhere.
+- `tools/` is for personal conversion scripts or image helpers used while iterating on assets.
+
+To customize the inline logo without sharing it:
+
+1. Save a transparent PNG roughly 11×4 cells to `internal/ui/components/logo.png`.
+2. Run `go run ./cmd/hotbrew` inside a Kitty/iTerm/WezTerm session to preview the inline image. Text-only terminals will keep using the ASCII banner.
+3. Because these paths are in `.gitignore`, your proprietary branding never leaves your machine while the rest of the project remains fully open-source.
+
 ## Roadmap
 
 - [ ] Finish repository/sqlc migration for all store operations

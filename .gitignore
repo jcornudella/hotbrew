@@ -32,3 +32,10 @@ Thumbs.db
 
 # Config (user-specific)
 digest.yaml
+
+# Local assets / tooling kept outside the OSS build
+assets/
+tools/
+hotbrew
+internal/ui/components/logo.png
+internal/ui/components/logo.go
