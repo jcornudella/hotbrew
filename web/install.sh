@@ -1,3 +1,4 @@
+
 #!/bin/bash
 # hotbrew installer - One command to brew them all
 set -e
@@ -7,22 +8,30 @@ if [[ "$1" == "--local" ]]; then
     MODE="local"
 fi
 
-BOLD='\033[1m'
-PINK='\033[38;5;205m'
-CYAN='\033[38;5;117m'
-RESET='\033[0m'
+BOLD='[1m'
+PINK='[38;5;205m'
+CYAN='[38;5;117m'
+RESET='[0m'
 
-echo ""
-echo -e "${PINK}    ) )${RESET}"
-echo -e "${PINK}   ( (${RESET}"
-echo -e "${PINK}    ) )${RESET}"
-echo -e "${CYAN}   ______${RESET}"
-echo -e "${CYAN}  |      |]${RESET}"
-echo -e "${CYAN}  |      |${RESET}"
-echo -e "${CYAN}   \\____/${RESET}"
-echo ""
-echo -e "${BOLD}☕ hotbrew installer${RESET}"
-echo ""
+printf "
+${PINK}    ) )${RESET}
+"
+printf "${PINK}   ( (${RESET}
+"
+printf "${PINK}    ) )${RESET}
+"
+printf "${CYAN}   ______${RESET}
+"
+printf "${CYAN}  |      |]${RESET}
+"
+printf "${CYAN}  |      |${RESET}
+"
+printf "${CYAN}   \____/${RESET}
+
+"
+printf "${BOLD}☕ hotbrew installer${RESET}
+
+"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -83,9 +92,6 @@ if [[ "$MODE" == "local" ]]; then
     fi
 fi
 
-INSTALL_DIR="${HOME}/.local/bin"
-mkdir -p "$INSTALL_DIR"
-
 echo "→ Downloading hotbrew..."
 if [[ "$MODE" == "local" ]]; then
     (cd "$REPO_ROOT" && go install ./cmd/hotbrew)
@@ -93,16 +99,35 @@ else
     go install github.com/jcornudella/hotbrew/cmd/hotbrew@latest
 fi
 INSTALL_DIR="$(go env GOPATH)/bin"
-
 echo "→ Installed to $INSTALL_DIR/hotbrew"
 
+SHELL_NAME=$(basename "$SHELL")
+RC_FILE=""
+case $SHELL_NAME in
+    zsh)  RC_FILE="$HOME/.zshrc" ;;
+    bash) RC_FILE="$HOME/.bashrc" ;;
+    fish) RC_FILE="$HOME/.config/fish/config.fish" ;;
+    *)    RC_FILE="" ;;
+esac
+
+ADDED_PATH=false
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     echo ""
-    echo "→ Add to your PATH by adding this to your shell rc:"
-    echo "  export PATH=\"\$PATH:$INSTALL_DIR\""
+    if [[ -n "$RC_FILE" ]]; then
+        if ! grep -q "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
+            printf '
+# hotbrew binary
+export PATH="\$PATH:%s"
+' "$INSTALL_DIR" >> "$RC_FILE"
+            echo "→ Added $INSTALL_DIR to PATH via $RC_FILE"
+            ADDED_PATH=true
+        fi
+    else
+        echo "→ Add to your PATH by adding this to your shell rc:"
+        echo "  export PATH="\$PATH:$INSTALL_DIR""
+    fi
 fi
 
-echo ""
 read -p "→ Enter your email for updates (optional, press Enter to skip): " EMAIL
 
 json_escape() {
@@ -121,10 +146,8 @@ if [ -n "$EMAIL" ]; then
     else
         echo "→ Subscribing..."
         ESCAPED_EMAIL=$(json_escape "$EMAIL")
-        PAYLOAD="{\"email\":\"$ESCAPED_EMAIL\"}"
-        RESPONSE=$(curl -s -X POST https://hotbrew.dev/api/subscribe \
-            -H "Content-Type: application/json" \
-            --data-binary "$PAYLOAD" 2>/dev/null || echo '{"token":"local"}')
+        PAYLOAD="{"email":"$ESCAPED_EMAIL"}"
+        RESPONSE=$(curl -s -X POST https://hotbrew.dev/api/subscribe             -H "Content-Type: application/json"             --data-binary "$PAYLOAD" 2>/dev/null || echo '{"token":"local"}')
 
         TOKEN=$(echo "$RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
@@ -141,30 +164,24 @@ fi
 
 echo ""
 echo "→ Setting up shell integration..."
-SHELL_NAME=$(basename "$SHELL")
-RC_FILE=""
-case $SHELL_NAME in
-    zsh)  RC_FILE="$HOME/.zshrc" ;;
-    bash) RC_FILE="$HOME/.bashrc" ;;
-    fish) RC_FILE="$HOME/.config/fish/config.fish" ;;
-    *)    RC_FILE="" ;;
-esac
-
-if [ -n "$RC_FILE" ]; then
-    read -p "→ Add hotbrew to $RC_FILE? [Y/n]: " ADD_TO_RC
+if [[ -n "$RC_FILE" ]]; then
+    read -p "→ Add hotbrew autorun to $RC_FILE? [Y/n]: " ADD_TO_RC
     ADD_TO_RC=${ADD_TO_RC:-Y}
     if [[ $ADD_TO_RC =~ ^[Yy]$ ]]; then
-        {
-            echo ""
-            echo "# hotbrew - Your morning, piping hot"
-            echo "command -v hotbrew &>/dev/null && hotbrew"
-        } >> "$RC_FILE"
-        echo "→ Added to $RC_FILE"
+        cat <<'EOAUTORUN' >> "$RC_FILE"
+
+# hotbrew - Your morning, piping hot
+command -v hotbrew &>/dev/null && hotbrew
+EOAUTORUN
+        echo "→ Added autorun snippet to $RC_FILE"
     fi
 fi
 
 echo ""
 echo -e "${BOLD}${PINK}☕ hotbrew is ready!${RESET}"
 echo ""
+if [[ "$ADDED_PATH" == true ]]; then
+    echo "Run 'source $RC_FILE' or restart your terminal to use hotbrew immediately."
+fi
 echo "Run ${CYAN}hotbrew${RESET} to see your morning digest."
 echo ""
