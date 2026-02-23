@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -64,6 +66,7 @@ type Server struct {
 	subscribers map[string]*Subscriber
 	mu          sync.RWMutex
 	dataFile    string
+	ratelimiter *rateLimiter
 }
 
 // New creates a new server
@@ -71,9 +74,46 @@ func New(dataDir string) *Server {
 	s := &Server{
 		subscribers: make(map[string]*Subscriber),
 		dataFile:    filepath.Join(dataDir, "subscribers.json"),
+		ratelimiter: newRateLimiter(5, time.Minute),
 	}
 	s.load()
 	return s
+}
+
+type rateLimiter struct {
+	limit  int
+	window time.Duration
+	mu     sync.Mutex
+	stats  map[string]*rateWindow
+}
+
+type rateWindow struct {
+	count int
+	reset time.Time
+}
+
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	return &rateLimiter{
+		limit:  limit,
+		window: window,
+		stats:  make(map[string]*rateWindow),
+	}
+}
+
+func (rl *rateLimiter) Allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	entry, ok := rl.stats[key]
+	if !ok || now.After(entry.reset) {
+		rl.stats[key] = &rateWindow{count: 1, reset: now.Add(rl.window)}
+		return true
+	}
+	if entry.count >= rl.limit {
+		return false
+	}
+	entry.count++
+	return true
 }
 
 // load reads subscribers from disk
@@ -143,6 +183,12 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ip := clientIP(r)
+	if !s.ratelimiter.Allow(ip) {
+		http.Error(w, "Too many requests", http.StatusTooManyRequests)
+		return
+	}
+
 	var req struct {
 		Email string `json:"email"`
 		Name  string `json:"name"`
@@ -193,6 +239,18 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 		"token":   token,
 		"message": "Welcome to hotbrew! Run: hotbrew login " + token,
 	})
+}
+
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 // GET /api/config/:token
