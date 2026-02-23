@@ -22,10 +22,14 @@ A beautiful terminal newsletter that aggregates your daily information into a si
 git clone https://github.com/jcornudella/hotbrew.git
 cd hotbrew
 
-# 2. (Optional) write ~/.config/hotbrew/hotbrew.yaml
+# 2. Install Go (skip if already installed)
+brew install go                        # macOS (Homebrew)
+# or: sudo apt-get install -y golang   # Debian/Ubuntu
+
+# 3. (Optional) write ~/.config/hotbrew/hotbrew.yaml
 hotbrew config --init
 
-# 3. Fetch sources + launch the TUI
+# 4. Fetch sources + launch the TUI
 go run ./cmd/hotbrew      # or: go install ./cmd/hotbrew && hotbrew
 
 # Inside the UI: j/k navigate · enter expand · t themes · p profiles · q quit
@@ -36,7 +40,13 @@ Hotbrew stores data under `~/.config/hotbrew/` (SQLite DB + manifests). Re-run `
 Prefer a one-liner? The installer ensures Go is present (via Homebrew/apt/yum/pacman) and sets up hotbrew:
 
 ```bash
-curl -fsSL https://hotbrew.dev/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jcornudella/hotbrew/main/web/install.sh | bash
+```
+
+Already cloned the repo but missing Go? Run it from the repo root and build this checkout:
+
+```bash
+./web/install.sh --local
 ```
 
 ## Installation
