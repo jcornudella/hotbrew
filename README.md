@@ -15,6 +15,24 @@ A beautiful terminal newsletter that aggregates your daily information into a si
 - **Local-first store** – SQLite cache plus repository layer for deduped items, digests, and feedback.
 - **Fast** – Single binary, instant startup.
 
+## TL;DR – Quick Start
+
+```bash
+# 1. Clone + enter the repo
+git clone https://github.com/jcornudella/hotbrew.git
+cd hotbrew
+
+# 2. (Optional) write ~/.config/hotbrew/hotbrew.yaml
+hotbrew config --init
+
+# 3. Fetch sources + launch the TUI
+go run ./cmd/hotbrew      # or: go install ./cmd/hotbrew && hotbrew
+
+# Inside the UI: j/k navigate · enter expand · t themes · p profiles · q quit
+```
+
+Hotbrew stores data under `~/.config/hotbrew/` (SQLite DB + manifests). Re-run `hotbrew` whenever you want the latest digest, or add it to cron/shell startup for a daily ritual.
+
 ## Installation
 
 ```bash
