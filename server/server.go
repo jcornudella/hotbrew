@@ -9,16 +9,19 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"time"
 )
 
+var emailRegex = regexp.MustCompile(`^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$`)
+
 // Subscriber represents a newsletter subscriber
 type Subscriber struct {
-	Token     string    `json:"token"`
-	Email     string    `json:"email,omitempty"`
-	Name      string    `json:"name,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	Token     string     `json:"token"`
+	Email     string     `json:"email,omitempty"`
+	Name      string     `json:"name,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
 	Config    UserConfig `json:"config"`
 }
 
@@ -34,15 +37,15 @@ type UserConfig struct {
 
 // NewsletterContent represents the daily newsletter data
 type NewsletterContent struct {
-	GeneratedAt time.Time       `json:"generated_at"`
+	GeneratedAt time.Time        `json:"generated_at"`
 	Sections    []ContentSection `json:"sections"`
 }
 
 // ContentSection is a section of the newsletter
 type ContentSection struct {
-	Name     string        `json:"name"`
-	Icon     string        `json:"icon"`
-	Items    []ContentItem `json:"items"`
+	Name  string        `json:"name"`
+	Icon  string        `json:"icon"`
+	Items []ContentItem `json:"items"`
 }
 
 // ContentItem is a single item in the newsletter
@@ -85,8 +88,13 @@ func (s *Server) load() {
 // save writes subscribers to disk
 func (s *Server) save() {
 	data, _ := json.MarshalIndent(s.subscribers, "", "  ")
-	os.MkdirAll(filepath.Dir(s.dataFile), 0755)
-	os.WriteFile(s.dataFile, data, 0644)
+	if err := os.MkdirAll(filepath.Dir(s.dataFile), 0o700); err != nil {
+		fmt.Printf("error creating data dir: %v\n", err)
+		return
+	}
+	if err := os.WriteFile(s.dataFile, data, 0o600); err != nil {
+		fmt.Printf("error writing subscribers: %v\n", err)
+	}
 }
 
 // generateToken creates a unique token
@@ -140,8 +148,20 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 		Name  string `json:"name"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	if req.Email == "" || len(req.Email) > 320 || !emailRegex.MatchString(req.Email) {
+		http.Error(w, "Valid email required", http.StatusBadRequest)
+		return
+	}
+	if len(req.Name) > 256 {
+		http.Error(w, "Name too long", http.StatusBadRequest)
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/jcornudella/hotbrew/internal/config"
+	"github.com/jcornudella/hotbrew/internal/sanitize"
 )
 
 // Stream handles `hotbrew stream` — tails the stream log.
@@ -27,7 +28,7 @@ func Stream(cfg *config.Config) {
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		fmt.Println(sanitize.Text(scanner.Text()))
 	}
 
 	if err := scanner.Err(); err != nil {

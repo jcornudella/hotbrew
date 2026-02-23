@@ -58,19 +58,38 @@ fi
 echo ""
 read -p "→ Enter your email for updates (optional, press Enter to skip): " EMAIL
 
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
 # Subscribe
 if [ -n "$EMAIL" ]; then
-    echo "→ Subscribing..."
-    RESPONSE=$(curl -s -X POST https://hotbrew.dev/api/subscribe \
-        -H "Content-Type: application/json" \
-        -d "{\"email\": \"$EMAIL\"}" 2>/dev/null || echo '{"token":"local"}')
+    if ! [[ "$EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+        echo "Invalid email format. Skipping subscription."
+    else
+        echo "→ Subscribing..."
+        ESCAPED_EMAIL=$(json_escape "$EMAIL")
+        PAYLOAD="{\"email\":\"$ESCAPED_EMAIL\"}"
+        RESPONSE=$(curl -s -X POST https://hotbrew.dev/api/subscribe \
+            -H "Content-Type: application/json" \
+            --data-binary "$PAYLOAD" 2>/dev/null || echo '{"token":"local"}')
 
-    TOKEN=$(echo $RESPONSE | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+        TOKEN=$(echo $RESPONSE | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 
-    if [ -n "$TOKEN" ] && [ "$TOKEN" != "local" ]; then
-        mkdir -p ~/.config/hotbrew
-        echo "$TOKEN" > ~/.config/hotbrew/token
-        echo "→ Subscribed! Token saved."
+        if [ -n "$TOKEN" ] && [ "$TOKEN" != "local" ]; then
+            mkdir -p -m 700 ~/.config/hotbrew
+            OLD_UMASK=$(umask)
+            umask 077
+            printf '%s' "$TOKEN" > ~/.config/hotbrew/token
+            umask "$OLD_UMASK"
+            echo "→ Subscribed! Token saved."
+        fi
     fi
 fi
 

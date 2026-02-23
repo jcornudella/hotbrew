@@ -12,17 +12,18 @@ import (
 // Config is the main configuration structure
 type Config struct {
 	Theme              string                  `yaml:"theme"`
+	Profile            string                  `yaml:"profile,omitempty"`
 	ShowAtStartup      bool                    `yaml:"show_at_startup"`
 	MaxItemsPerSection int                     `yaml:"max_items_per_section"`
 	Sources            map[string]SourceConfig `yaml:"sources"`
 	CustomTheme        *CustomThemeConfig      `yaml:"custom_theme,omitempty"`
 
 	// TRSS settings
-	DBPath        string `yaml:"db_path,omitempty"`
-	SyncInterval  string `yaml:"sync_interval,omitempty"`  // e.g. "15m", "1h"
-	DigestWindow  string `yaml:"digest_window,omitempty"`  // e.g. "24h", "12h"
-	DigestMax     int    `yaml:"digest_max,omitempty"`     // max items in digest
-	StreamLog     string `yaml:"stream_log,omitempty"`     // path to stream.log
+	DBPath       string `yaml:"db_path,omitempty"`
+	SyncInterval string `yaml:"sync_interval,omitempty"` // e.g. "15m", "1h"
+	DigestWindow string `yaml:"digest_window,omitempty"` // e.g. "24h", "12h"
+	DigestMax    int    `yaml:"digest_max,omitempty"`    // max items in digest
+	StreamLog    string `yaml:"stream_log,omitempty"`    // path to stream.log
 }
 
 // CustomThemeConfig holds custom theme colors
@@ -46,8 +47,9 @@ type SourceConfig struct {
 // Default returns the default configuration
 func Default() *Config {
 	return &Config{
-		Theme:           "synthwave",
-		ShowAtStartup:   true,
+		Theme:              "synthwave",
+		Profile:            "default",
+		ShowAtStartup:      true,
 		MaxItemsPerSection: 5,
 		Sources: map[string]SourceConfig{
 			"hackernews": {
@@ -98,7 +100,7 @@ func Save(cfg *Config) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(configPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 
@@ -107,7 +109,7 @@ func Save(cfg *Config) error {
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return os.WriteFile(configPath, data, 0o600)
 }
 
 // getConfigPath returns the path to the config file
@@ -176,6 +178,14 @@ func (c *Config) GetStreamLogPath() string {
 		return c.StreamLog
 	}
 	return filepath.Join(configDir(), "stream.log")
+}
+
+// GetProfileName returns the selected profile or default.
+func (c *Config) GetProfileName() string {
+	if c.Profile == "" {
+		return "default"
+	}
+	return c.Profile
 }
 
 // configDir returns the hotbrew config directory.

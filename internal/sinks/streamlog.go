@@ -15,11 +15,11 @@ type StreamLog struct {
 
 func (s *StreamLog) Deliver(d *trss.Digest) error {
 	dir := filepath.Dir(s.Path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create log dir: %w", err)
 	}
 
-	f, err := os.OpenFile(s.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(s.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return fmt.Errorf("open stream log: %w", err)
 	}

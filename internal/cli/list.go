@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jcornudella/hotbrew/internal/sanitize"
 	"github.com/jcornudella/hotbrew/internal/store"
 )
 
@@ -63,12 +64,13 @@ func List(st *store.Store, opts ListOptions) {
 
 		age := formatAge(item.PublishedAt)
 
-		fmt.Printf("  %s %2d. %s%s\n", score, i+1, item.Title, state)
+		title := sanitize.Text(item.Title)
+		summary := sanitize.Text(item.Summary)
+		fmt.Printf("  %s %2d. %s%s\n", score, i+1, title, state)
 		fmt.Printf("       %s %s · %s · %s\n",
 			item.Source.Icon, item.Source.Name, age, shortID(item.ID))
 
-		if item.Summary != "" {
-			summary := item.Summary
+		if summary != "" {
 			if len(summary) > 100 {
 				summary = summary[:97] + "..."
 			}

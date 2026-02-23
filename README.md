@@ -9,11 +9,11 @@ A beautiful terminal newsletter that aggregates your daily information into a si
 
 ## Features
 
-- **Beautiful UI** - Gradient text, themed colors, smooth interactions
-- **Multiple themes** - Synthwave (neon), Nord (arctic), Dracula (dark)
-- **Pluggable sources** - Easy to add new data sources
-- **Keyboard-driven** - Navigate and act without the mouse
-- **Fast** - Single binary, instant startup
+- **One-command digest** – `hotbrew` automatically syncs fresh sources and launches the TUI.
+- **Manifest-driven sources** – Customize feeds via YAML profiles in `~/.config/hotbrew/profiles/` without rebuilding.
+- **Keyboard + theme picker** – Smooth Bubble Tea UI with timeline navigation, per-item actions, and a `t` theme selector.
+- **Local-first store** – SQLite cache plus repository layer for deduped items, digests, and feedback.
+- **Fast** – Single binary, instant startup.
 
 ## Installation
 
@@ -31,14 +31,15 @@ make build
 ## Usage
 
 ```bash
-# Show your digest
+# Fetch latest sources + open TUI
 hotbrew
 
-# Initialize config
+# Initialize config (writes ~/.config/hotbrew/hotbrew.yaml)
 hotbrew config --init
 
-# List themes
-hotbrew themes
+# List & set themes via CLI
+hotbrew theme          # list
+hotbrew theme nord     # apply
 
 # Show help
 hotbrew help
@@ -56,6 +57,7 @@ hotbrew help
 | `o` | Open in browser |
 | `c` | Open comments (HN) |
 | `r` | Refresh |
+| `t` | Theme picker |
 | `1-9` | Jump to section |
 | `q` / `esc` | Quit |
 
@@ -64,8 +66,9 @@ hotbrew help
 Config file: `~/.config/hotbrew/hotbrew.yaml`
 
 ```yaml
-# Theme: synthwave, nord, dracula
+# Theme & profile
 theme: synthwave
+profile: default
 
 sources:
   hackernews:
@@ -74,42 +77,39 @@ sources:
       max: 8
 ```
 
+### Profiles & manifests
+
+Hotbrew loads sources from `~/.config/hotbrew/profiles/<name>.yaml`. A default manifest is written on first run. Switch manifests by updating the `profile:` field or editing the YAML files directly. Each entry can point at drivers like `hackernews`, `tldr`, `github-trending`, etc., with custom queries, tags, or feed URLs.
+
 ## Themes
 
-### Synthwave (default)
-Vibrant neon pinks, purples, and cyans. Retro-futuristic vibes.
+Press `t` inside the TUI to bring up the picker. Use `←/→` (or `h/l`) to preview, `enter` to apply, and `esc` to cancel. Built-in palettes include Synthwave, Nord, Dracula, Mocha, Ocean, Forest, Sunset, and Midnight. You can register custom palettes via config for a fully bespoke look.
 
-### Nord
-Cool arctic blues. Clean and minimal.
+## Architecture
 
-### Dracula
-Dark purples and pinks. Classic dark theme.
-
-## Adding Sources
-
-Sources implement the `Source` interface:
-
-```go
-type Source interface {
-    Name() string
-    Icon() string
-    Fetch(ctx context.Context, cfg Config) (*Section, error)
-    TTL() time.Duration
-}
+```mermaid
+flowchart TD
+    A[Profiles YAML<br>~/.config/hotbrew/profiles] --> B[Source Registry]
+    B -->|Fetch| C[Syncer / CLI]
+    C -->|Insert| D[(SQLite Store)]
+    D -->|Repos| E[Curation Engine]
+    E -->|Sections & Digests| F[Bubble Tea UI]
+    F -->|Feedback/Actions| D
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+- **Profiles** – YAML manifests declare drivers, queries, feeds, and icons. Selecting a profile in `hotbrew.yaml` determines which sources are registered.
+- **Syncer** – `hotbrew sync`, the daemon, or the startup `sync-and-run` command fetch each source, normalize items into TRSS, and persist via repositories.
+- **Store/Repo layer** – SQLite holds items, state, rules, digests, and feedback. The `internal/store/repo` package provides typed accessors so future sqlc code or remote stores can drop in.
+- **Curation engine** – Deduplicates, scores, enforces diversity, and builds digests consumed by `hotbrew digest` and the TUI.
+- **Bubble Tea UI** – Timeline layout with theme picker, per-item actions, and live feedback prompts.
 
 ## Roadmap
 
-- [ ] GitHub integration (PRs, issues, notifications)
-- [ ] Linear integration
-- [ ] Google Calendar
-- [ ] Slack highlights
-- [ ] RSS feeds
-- [ ] AI summarization
-- [ ] Custom themes
-- [ ] Plugin system
+- [ ] Finish repository/sqlc migration for all store operations
+- [ ] Harden network sync (retries, TLS pinning) and secure token storage
+- [ ] Expand manifest schema (remote profiles, richer options)
+- [ ] GitHub/Linear/Calendar integrations
+- [ ] AI summarization + plugin system
 
 ## Contributing
 

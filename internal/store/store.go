@@ -17,8 +17,17 @@ type Store struct {
 // Open opens or creates a SQLite database at the given path.
 func Open(dbPath string) (*Store, error) {
 	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
+	}
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		if f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0o600); err == nil {
+			f.Close()
+		} else {
+			return nil, err
+		}
+	} else if err == nil {
+		os.Chmod(dbPath, 0o600)
 	}
 
 	db, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")

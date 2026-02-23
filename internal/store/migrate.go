@@ -2,7 +2,7 @@ package store
 
 import "fmt"
 
-const currentVersion = 1
+const currentVersion = 2
 
 var migrations = []string{
 	// Version 1: initial schema
@@ -80,6 +80,15 @@ var migrations = []string{
 		generated_at TEXT NOT NULL DEFAULT (datetime('now')),
 		item_count   INTEGER,
 		data         TEXT
+	);
+	`,
+	// Version 2: feedback table for issue ratings
+	`
+	CREATE TABLE IF NOT EXISTS feedback (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		rating     INTEGER NOT NULL,
+		note       TEXT,
+		created_at TEXT NOT NULL DEFAULT (datetime('now'))
 	);
 	`,
 }

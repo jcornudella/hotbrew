@@ -21,6 +21,7 @@ import (
 	"github.com/jcornudella/hotbrew/internal/store"
 	"github.com/jcornudella/hotbrew/internal/ui/components"
 	"github.com/jcornudella/hotbrew/internal/ui/theme"
+	"github.com/jcornudella/hotbrew/pkg/profile"
 	"github.com/jcornudella/hotbrew/pkg/source"
 )
 
@@ -48,11 +49,23 @@ type Model struct {
 	expanded   bool
 
 	// UI
-	spinner    spinner.Model
-	width      int
-	height     int
-	animFrame  int
-	statusMsg  string
+	spinner             spinner.Model
+	width               int
+	height              int
+	animFrame           int
+	statusMsg           string
+	themePicker         bool
+	themeList           []string
+	themeCursor         int
+	previewTheme        string
+	profilePicker       bool
+	profileList         []profile.Info
+	profileCursor       int
+	profileEditor       bool
+	profileEditorName   string
+	profileEditorSpecs  []profile.SourceSpec
+	profileEditorState  []bool
+	profileEditorCursor int
 }
 
 // Messages
@@ -89,12 +102,15 @@ func NewModel(cfg *config.Config, st ...*store.Store) Model {
 	}
 
 	m := Model{
-		cfg:     cfg,
-		theme:   theme.Get(cfg.Theme),
-		state:   StateLoading,
-		spinner: s,
-		width:   80,
-		height:  24,
+		cfg:           cfg,
+		theme:         theme.Get(cfg.Theme),
+		state:         StateLoading,
+		spinner:       s,
+		width:         80,
+		height:        24,
+		themeList:     theme.List(),
+		profileList:   profile.List(),
+		profileCursor: 0,
 	}
 	if len(st) > 0 && st[0] != nil {
 		m.store = st[0]
@@ -168,7 +184,7 @@ func fetchSections(cfg *config.Config) tea.Cmd {
 			"🤖",
 		)
 		vibeSection, vibeErr := vibeSearch.Fetch(ctx, source.Config{
-			Enabled: true,
+			Enabled:  true,
 			Settings: map[string]any{"max": 8},
 		})
 		if vibeErr == nil && vibeSection != nil && len(vibeSection.Items) > 0 {
@@ -197,6 +213,15 @@ func fetchSections(cfg *config.Config) tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.profileEditor {
+			return m.handleProfileEditorKey(msg)
+		}
+		if m.profilePicker {
+			return m.handleProfileKey(msg)
+		}
+		if m.themePicker {
+			return m.handleThemeKey(msg)
+		}
 		return m.handleKey(msg)
 
 	case tea.WindowSizeMsg:
@@ -331,6 +356,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.sectionIdx = (m.sectionIdx - 1 + len(m.sections)) % len(m.sections)
 			m.itemIdx = 0
 		}
+	case "t", "T":
+		m = m.startThemePicker()
+		return m, nil
+	case "p", "P":
+		m = m.startProfilePicker()
+		return m, nil
 	}
 
 	return m, nil
@@ -367,6 +398,188 @@ func (m Model) moveUp() Model {
 	return m
 }
 
+func (m Model) startThemePicker() Model {
+	m.themePicker = true
+	m.profilePicker = false
+	m.profileEditor = false
+	m.previewTheme = m.cfg.Theme
+	for i, name := range m.themeList {
+		if name == m.cfg.Theme {
+			m.themeCursor = i
+			break
+		}
+	}
+	m = m.applyPreviewTheme(m.themeList[m.themeCursor])
+	return m
+}
+
+func (m Model) startProfilePicker() Model {
+	m.profilePicker = true
+	m.themePicker = false
+	m.profileEditor = false
+	m.profileList = profile.List()
+	if len(m.profileList) == 0 {
+		m.profileList = []profile.Info{{Name: m.cfg.GetProfileName(), SourceCount: 0}}
+	}
+	selected := m.cfg.GetProfileName()
+	m.profileCursor = 0
+	for i, info := range m.profileList {
+		if info.Name == selected {
+			m.profileCursor = i
+			break
+		}
+	}
+	return m
+}
+
+func (m Model) startProfileEditor(name string) Model {
+	if name == "" {
+		return m
+	}
+	p := profile.Load(name)
+	if p == nil {
+		return m
+	}
+	m.profileEditor = true
+	m.profilePicker = false
+	m.profileEditorName = name
+	m.profileEditorCursor = 0
+	m.profileEditorSpecs = make([]profile.SourceSpec, len(p.Sources))
+	copy(m.profileEditorSpecs, p.Sources)
+	m.profileEditorState = make([]bool, len(m.profileEditorSpecs))
+	for i := range m.profileEditorState {
+		m.profileEditorState[i] = true
+	}
+	return m
+}
+
+func (m Model) handleThemeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "left", "h":
+		if len(m.themeList) > 0 {
+			m.themeCursor = (m.themeCursor - 1 + len(m.themeList)) % len(m.themeList)
+			m = m.applyPreviewTheme(m.themeList[m.themeCursor])
+		}
+	case "right", "l":
+		if len(m.themeList) > 0 {
+			m.themeCursor = (m.themeCursor + 1) % len(m.themeList)
+			m = m.applyPreviewTheme(m.themeList[m.themeCursor])
+		}
+	case "enter":
+		if len(m.themeList) > 0 {
+			selected := m.themeList[m.themeCursor]
+			m.themePicker = false
+			return m.applyTheme(selected)
+		}
+	case "esc":
+		m.themePicker = false
+		m = m.applyPreviewTheme(m.cfg.Theme)
+	}
+	return m, nil
+}
+
+func (m Model) handleProfileKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "left", "h", "up", "k":
+		if len(m.profileList) > 0 {
+			m.profileCursor = (m.profileCursor - 1 + len(m.profileList)) % len(m.profileList)
+		}
+	case "right", "l", "down", "j":
+		if len(m.profileList) > 0 {
+			m.profileCursor = (m.profileCursor + 1) % len(m.profileList)
+		}
+	case "enter":
+		if len(m.profileList) > 0 {
+			selected := m.profileList[m.profileCursor].Name
+			return m.applyProfile(selected)
+		}
+	case "e":
+		if len(m.profileList) > 0 {
+			return m.startProfileEditor(m.profileList[m.profileCursor].Name), nil
+		}
+	case "esc":
+		m.profilePicker = false
+	}
+	return m, nil
+}
+
+func (m Model) handleProfileEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		if l := len(m.profileEditorSpecs); l > 0 {
+			m.profileEditorCursor = (m.profileEditorCursor - 1 + l) % l
+		}
+	case "down", "j":
+		if l := len(m.profileEditorSpecs); l > 0 {
+			m.profileEditorCursor = (m.profileEditorCursor + 1) % l
+		}
+	case "space", "enter":
+		if len(m.profileEditorState) > 0 && m.profileEditorCursor < len(m.profileEditorState) {
+			m.profileEditorState[m.profileEditorCursor] = !m.profileEditorState[m.profileEditorCursor]
+		}
+	case "s":
+		return m.saveProfileEditor()
+	case "esc":
+		m.profileEditor = false
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m Model) applyPreviewTheme(name string) Model {
+	if name == "" {
+		return m
+	}
+	m.theme = theme.Get(name)
+	m.previewTheme = name
+	return m
+}
+
+func (m Model) applyTheme(name string) (tea.Model, tea.Cmd) {
+	m.cfg.Theme = name
+	m.theme = theme.Get(name)
+	m.previewTheme = ""
+	m.themePicker = false
+	config.Save(m.cfg)
+	m.statusMsg = fmt.Sprintf("Theme switched to %s", name)
+	return m, animTick()
+}
+
+func (m Model) applyProfile(name string) (tea.Model, tea.Cmd) {
+	if name == "" {
+		m.profilePicker = false
+		return m, nil
+	}
+	m.profilePicker = false
+	if m.cfg.Profile == name {
+		return m, nil
+	}
+	m.cfg.Profile = name
+	config.Save(m.cfg)
+	m.statusMsg = fmt.Sprintf("Profile switched to %s", name)
+	m.state = StateLoading
+	if m.store != nil {
+		return m, loadFromStore(m.store, m.cfg)
+	}
+	return m, fetchSections(m.cfg)
+}
+
+func (m Model) saveProfileEditor() (tea.Model, tea.Cmd) {
+	var updated []profile.SourceSpec
+	for i, spec := range m.profileEditorSpecs {
+		if i < len(m.profileEditorState) && m.profileEditorState[i] {
+			updated = append(updated, spec)
+		}
+	}
+	if err := profile.Save(m.profileEditorName, updated); err != nil {
+		m.statusMsg = fmt.Sprintf("Save failed: %v", err)
+		return m, nil
+	}
+	m.profileEditor = false
+	m.profileList = profile.List()
+	return m.applyProfile(m.profileEditorName)
+}
+
 func (m Model) selectedItem() *source.Item {
 	if len(m.sections) == 0 || m.sectionIdx >= len(m.sections) {
 		return nil
@@ -394,7 +607,20 @@ func (m Model) View() string {
 		b.WriteString(m.renderError())
 
 	case StateReady:
-		b.WriteString(m.renderSections())
+		content := m.renderSections()
+		overlay := ""
+		switch {
+		case m.profileEditor:
+			overlay = m.renderProfileEditor()
+		case m.profilePicker:
+			overlay = m.renderProfilePicker()
+		case m.themePicker:
+			overlay = m.renderThemePicker()
+		}
+		if overlay != "" {
+			content = m.applyOverlay(content, overlay)
+		}
+		b.WriteString(content)
 	}
 
 	// Status message
@@ -407,8 +633,9 @@ func (m Model) View() string {
 	}
 
 	// Footer
+	current, total := m.progressCounts()
 	b.WriteString("\n")
-	b.WriteString(components.Footer(m.theme, m.width))
+	b.WriteString(components.Footer(m.theme, m.width, m.expanded, current, total))
 
 	return b.String()
 }
@@ -448,6 +675,206 @@ func (m Model) renderSections() string {
 	}
 
 	return strings.Join(parts, "")
+}
+
+func (m Model) progressCounts() (int, int) {
+	total := 0
+	current := 0
+	for si, section := range m.sections {
+		if section == nil {
+			continue
+		}
+		count := len(section.Items)
+		if count == 0 {
+			continue
+		}
+		total += count
+		if si < m.sectionIdx {
+			current += count
+			continue
+		}
+		if si == m.sectionIdx {
+			idx := m.itemIdx
+			if idx >= count {
+				idx = count - 1
+			}
+			current += idx + 1
+		}
+	}
+	if total == 0 {
+		return 0, 0
+	}
+	if current < 1 {
+		current = 1
+	}
+	if current > total {
+		current = total
+	}
+	return current, total
+}
+
+func (m Model) applyOverlay(content, overlay string) string {
+	if overlay == "" {
+		return content
+	}
+	height := lipgloss.Height(overlay)
+	if height <= 0 {
+		return content
+	}
+	placed := lipgloss.Place(
+		m.width,
+		height,
+		lipgloss.Center,
+		lipgloss.Bottom,
+		overlay,
+		lipgloss.WithWhitespaceChars(" "),
+	)
+	base := strings.TrimRight(content, "\n")
+	if base != "" {
+		base += "\n\n"
+	}
+	return base + placed
+}
+
+func (m Model) renderThemePicker() string {
+	if len(m.themeList) == 0 {
+		return ""
+	}
+
+	header := m.theme.AccentStyle().Bold(true).Render("Theme Picker")
+	instructions := m.theme.MutedStyle().Render("←/→ preview  •  enter apply  •  esc cancel")
+	var options []string
+	for i, name := range m.themeList {
+		optionTheme := theme.Get(name)
+		swatch := renderThemeSwatch(optionTheme.HeaderGradient())
+		label := fmt.Sprintf("%s %s", swatch, name)
+		style := m.theme.MutedStyle()
+		if name == m.cfg.Theme {
+			style = style.Bold(true)
+		}
+		if i == m.themeCursor {
+			style = m.theme.ItemSelectedStyle().Bold(true)
+		}
+		options = append(options, style.Render(label))
+	}
+
+	body := strings.Join(options, "\n")
+	width := m.width / 2
+	if width < 32 {
+		width = m.width - 4
+	}
+	if width < 20 {
+		width = m.width
+	}
+	box := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Accent()).
+		Padding(1, 3).
+		Width(width)
+
+	return box.Render(lipgloss.JoinVertical(lipgloss.Left, header, instructions, "", body))
+}
+
+func (m Model) renderProfilePicker() string {
+	if len(m.profileList) == 0 {
+		return ""
+	}
+
+	header := m.theme.AccentStyle().Bold(true).Render("Profile Picker")
+	instructions := m.theme.MutedStyle().Render("↑/↓ select  •  enter apply  •  e edit  •  esc cancel")
+	current := m.cfg.GetProfileName()
+	var rows []string
+	for i, info := range m.profileList {
+		label := info.Name
+		if info.SourceCount > 0 {
+			label = fmt.Sprintf("%s  •  %d sources", info.Name, info.SourceCount)
+		}
+		style := m.theme.MutedStyle()
+		if info.Name == current {
+			style = style.Bold(true)
+		}
+		if i == m.profileCursor {
+			style = m.theme.ItemSelectedStyle().Bold(true)
+		}
+		rows = append(rows, style.Render(label))
+	}
+
+	body := strings.Join(rows, "\n")
+	width := m.width / 2
+	if width < 32 {
+		width = m.width - 4
+	}
+	if width < 24 {
+		width = m.width
+	}
+	box := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Accent()).
+		Padding(1, 3).
+		Width(width)
+
+	return box.Render(lipgloss.JoinVertical(lipgloss.Left, header, instructions, "", body))
+}
+
+func (m Model) renderProfileEditor() string {
+	if !m.profileEditor {
+		return ""
+	}
+
+	header := m.theme.AccentStyle().Bold(true).Render(fmt.Sprintf("Editing: %s", m.profileEditorName))
+	instructions := m.theme.MutedStyle().Render("space toggle  •  s save  •  esc cancel")
+	if len(m.profileEditorSpecs) == 0 {
+		placeholder := m.theme.MutedStyle().Render("Profile is empty. Save to keep it blank or esc to cancel.")
+		box := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(m.theme.Accent()).
+			Padding(1, 3).
+			Width(m.width / 2)
+		return box.Render(lipgloss.JoinVertical(lipgloss.Left, header, instructions, "", placeholder))
+	}
+
+	var rows []string
+	for i, spec := range m.profileEditorSpecs {
+		checked := "[ ]"
+		if i < len(m.profileEditorState) && m.profileEditorState[i] {
+			checked = "[x]"
+		}
+		label := fmt.Sprintf("%s %s (%s)", checked, spec.Name, spec.Driver)
+		style := m.theme.MutedStyle()
+		if i == m.profileEditorCursor {
+			style = m.theme.ItemSelectedStyle().Bold(true)
+		}
+		rows = append(rows, style.Render(label))
+	}
+
+	body := strings.Join(rows, "\n")
+	width := m.width / 2
+	if width < 40 {
+		width = m.width - 4
+	}
+	box := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Accent()).
+		Padding(1, 3).
+		Width(width)
+
+	return box.Render(lipgloss.JoinVertical(lipgloss.Left, header, instructions, "", body))
+}
+
+func renderThemeSwatch(colors []string) string {
+	if len(colors) == 0 {
+		return ""
+	}
+	max := 4
+	if len(colors) < max {
+		max = len(colors)
+	}
+	var blocks []string
+	for i := 0; i < max; i++ {
+		block := lipgloss.NewStyle().Foreground(lipgloss.Color(colors[i])).Render("██")
+		blocks = append(blocks, block)
+	}
+	return strings.Join(blocks, "")
 }
 
 // extractItemDomain gets the hostname from a URL.

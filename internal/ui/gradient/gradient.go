@@ -3,6 +3,7 @@ package gradient
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -40,81 +41,101 @@ func interpolateColor(c1, c2 string, t float64) string {
 
 // Text renders text with a gradient effect across characters
 func Text(text string, colors []string) string {
-	if len(colors) == 0 {
-		return text
-	}
-	if len(colors) == 1 {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(colors[0])).Render(text)
-	}
-
-	runes := []rune(text)
-	if len(runes) == 0 {
-		return ""
-	}
-	if len(runes) == 1 {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(colors[0])).Render(text)
-	}
-
-	result := ""
-	segments := len(colors) - 1
-
-	for i, r := range runes {
-		// Calculate position in gradient (0.0 to 1.0)
-		t := float64(i) / float64(len(runes)-1)
-
-		// Find which color segment we're in
-		segmentFloat := t * float64(segments)
-		segment := int(segmentFloat)
-		if segment >= segments {
-			segment = segments - 1
-		}
-
-		// Calculate position within this segment
-		segmentT := segmentFloat - float64(segment)
-
-		// Interpolate between the two colors in this segment
-		color := interpolateColor(colors[segment], colors[segment+1], segmentT)
-
-		style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
-		result += style.Render(string(r))
-	}
-
-	return result
+	return applyGradient(text, colors, lipgloss.NewStyle())
 }
 
 // Bold renders bold text with a gradient effect
 func Bold(text string, colors []string) string {
-	if len(colors) == 0 {
-		return lipgloss.NewStyle().Bold(true).Render(text)
-	}
-	if len(colors) == 1 {
-		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colors[0])).Render(text)
-	}
+	base := lipgloss.NewStyle().Bold(true)
+	return applyGradient(text, colors, base)
+}
 
+// LineGradient colors each line using the provided gradient stops.
+func LineGradient(text string, colors []string) string {
+	if len(colors) == 0 {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+	if len(lines) == 1 {
+		color := gradientColorAt(colors, 0)
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(lines[0])
+	}
+	var rendered []string
+	for i, line := range lines {
+		pos := float64(i) / float64(len(lines)-1)
+		color := gradientColorAt(colors, pos)
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
+		rendered = append(rendered, style.Render(line))
+	}
+	return strings.Join(rendered, "\n")
+}
+
+func applyGradient(text string, colors []string, base lipgloss.Style) string {
+	if len(colors) == 0 {
+		return base.Render(text)
+	}
 	runes := []rune(text)
 	if len(runes) == 0 {
 		return ""
 	}
-	if len(runes) == 1 {
-		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(colors[0])).Render(text)
+	if len(colors) == 1 || len(runes) == 1 {
+		return base.Foreground(lipgloss.Color(colors[0])).Render(text)
 	}
 
-	result := ""
-	segments := len(colors) - 1
-
-	for i, r := range runes {
-		t := float64(i) / float64(len(runes)-1)
-		segmentFloat := t * float64(segments)
-		segment := int(segmentFloat)
-		if segment >= segments {
-			segment = segments - 1
+	var builder strings.Builder
+	currentColor := ""
+	chunk := make([]rune, 0, len(runes))
+	flush := func(color string) {
+		if color == "" || len(chunk) == 0 {
+			return
 		}
-		segmentT := segmentFloat - float64(segment)
-		color := interpolateColor(colors[segment], colors[segment+1], segmentT)
-
-		style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(color))
-		result += style.Render(string(r))
+		style := base.Foreground(lipgloss.Color(color))
+		builder.WriteString(style.Render(string(chunk)))
+		chunk = chunk[:0]
 	}
 
-	return result
+	total := len(runes) - 1
+	for i, r := range runes {
+		pos := float64(i) / float64(total)
+		color := gradientColorAt(colors, pos)
+		if currentColor == "" {
+			currentColor = color
+		}
+		if color != currentColor {
+			flush(currentColor)
+			currentColor = color
+		}
+		chunk = append(chunk, r)
+	}
+	flush(currentColor)
+
+	return builder.String()
+}
+
+// ColorAt returns the interpolated color at a position (0.0 to 1.0) along the gradient.
+func ColorAt(colors []string, position float64) string {
+	return gradientColorAt(colors, position)
+}
+
+func gradientColorAt(colors []string, position float64) string {
+	if len(colors) == 1 {
+		return colors[0]
+	}
+	if position <= 0 {
+		return colors[0]
+	}
+	if position >= 1 {
+		return colors[len(colors)-1]
+	}
+	segments := len(colors) - 1
+	segmentFloat := position * float64(segments)
+	segment := int(segmentFloat)
+	if segment >= segments {
+		segment = segments - 1
+	}
+	segmentT := segmentFloat - float64(segment)
+	return interpolateColor(colors[segment], colors[segment+1], segmentT)
 }
