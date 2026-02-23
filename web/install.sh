@@ -163,19 +163,22 @@ if [ -n "$EMAIL" ]; then
 fi
 
 echo ""
-echo "→ Setting up shell integration..."
-if [[ -n "$RC_FILE" ]]; then
-    read -p "→ Add hotbrew autorun to $RC_FILE? [Y/n]: " ADD_TO_RC
-    ADD_TO_RC=${ADD_TO_RC:-Y}
-    if [[ $ADD_TO_RC =~ ^[Yy]$ ]]; then
-        cat <<'EOAUTORUN' >> "$RC_FILE"
+echo "→ (Optional) add this snippet to run hotbrew once per day when new shells start:"
+cat <<'EOAUTORUN'
 
-# hotbrew - Your morning, piping hot
-command -v hotbrew &>/dev/null && hotbrew
-EOAUTORUN
-        echo "→ Added autorun snippet to $RC_FILE"
-    fi
+# hotbrew - once per day
+if command -v hotbrew &>/dev/null; then
+  stamp="$HOME/.cache/hotbrew_last_run"
+  today="$(date +%Y-%m-%d)"
+  last=""
+  [[ -f "$stamp" ]] && last="$(cat "$stamp")"
+  if [[ "$today" != "$last" ]]; then
+    mkdir -p "$HOME/.cache"
+    echo "$today" > "$stamp"
+    hotbrew
+  fi
 fi
+EOAUTORUN
 
 echo ""
 echo -e "${BOLD}${PINK}☕ hotbrew is ready!${RESET}"
