@@ -28,22 +28,57 @@ case $ARCH in
     aarch64|arm64) ARCH="arm64" ;;
 esac
 
+# Install Go if needed
+ensure_go() {
+    if command -v go &> /dev/null; then
+        return
+    fi
+
+    echo "→ Go not found. Installing..."
+    case "$OS" in
+        darwin)
+            if command -v brew &> /dev/null; then
+                brew install go
+            else
+                echo "Homebrew not detected. Install Go manually: https://go.dev/dl/"
+                exit 1
+            fi
+            ;;
+        linux)
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update && sudo apt-get install -y golang
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y golang
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -Sy --noconfirm go
+            else
+                echo "Unsupported package manager. Install Go manually: https://go.dev/dl/"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Unsupported OS. Install Go manually: https://go.dev/dl/"
+            exit 1
+            ;;
+    esac
+
+    if ! command -v go &> /dev/null; then
+        echo "Go installation failed. Please install from https://go.dev/dl/"
+        exit 1
+    fi
+}
+
+ensure_go
+
 # Install location
 INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
 echo "→ Downloading hotbrew..."
 
-# For now, build from source (later: download binary)
-if command -v go &> /dev/null; then
-    go install github.com/jcornudella/hotbrew/cmd/hotbrew@latest
-    INSTALL_DIR="$(go env GOPATH)/bin"
-else
-    echo "Go not found. Installing via binary..."
-    # TODO: Add binary download URL
-    echo "Please install Go first: https://go.dev/dl/"
-    exit 1
-fi
+# Build from source (binary releases coming soon)
+go install github.com/jcornudella/hotbrew/cmd/hotbrew@latest
+INSTALL_DIR="$(go env GOPATH)/bin"
 
 echo "→ Installed to $INSTALL_DIR/hotbrew"
 

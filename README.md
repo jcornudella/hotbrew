@@ -33,6 +33,12 @@ go run ./cmd/hotbrew      # or: go install ./cmd/hotbrew && hotbrew
 
 Hotbrew stores data under `~/.config/hotbrew/` (SQLite DB + manifests). Re-run `hotbrew` whenever you want the latest digest, or add it to cron/shell startup for a daily ritual.
 
+Prefer a one-liner? The installer ensures Go is present (via Homebrew/apt/yum/pacman) and sets up hotbrew:
+
+```bash
+curl -fsSL https://hotbrew.dev/install.sh | bash
+```
+
 ## Installation
 
 ```bash
