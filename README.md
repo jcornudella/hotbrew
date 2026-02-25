@@ -4,7 +4,6 @@
 
 A beautiful terminal newsletter that aggregates your daily information into a single, scannable digest.
 
-![CI](https://github.com/jcornudella/hotbrew/workflows/CI/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
@@ -26,11 +25,15 @@ cd hotbrew
 brew install go                        # macOS (Homebrew)
 # or: sudo apt-get install -y golang   # Debian/Ubuntu
 
-# 3. (Optional) write ~/.config/hotbrew/hotbrew.yaml
+# 3. Install the Hotbrew binary (required before using `hotbrew ...` commands)
+go install ./cmd/hotbrew
+# (developers can run directly with `go run ./cmd/hotbrew`)
+
+# 4. (Optional) write ~/.config/hotbrew/hotbrew.yaml after the binary exists
 hotbrew config --init
 
-# 4. Fetch sources + launch the TUI
-go run ./cmd/hotbrew      # or: go install ./cmd/hotbrew && hotbrew
+# 5. Launch the TUI
+hotbrew      # or: go run ./cmd/hotbrew
 
 # Inside the UI: j/k navigate · enter expand · t themes · p profiles · q quit
 ```
