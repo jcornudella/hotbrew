@@ -78,7 +78,7 @@ func renderBriefing(briefing *intel.Briefing) string {
 		fmt.Fprintf(&b, "Section %d: %s [%s] %v\n", i+1, section.Name, section.Kind, section.ClusterIDs)
 	}
 	for i, item := range briefing.Items {
-		fmt.Fprintf(&b, "Item %d: %.3f | %s | %s | %s\n", i+1, item.Score, item.Item.SourceName, item.Item.Title, item.Item.CanonicalURL)
+		fmt.Fprintf(&b, "Item %d: %s | %s | %s\n", i+1, item.Item.SourceName, item.Item.Title, item.Item.CanonicalURL)
 	}
 	return b.String()
 }

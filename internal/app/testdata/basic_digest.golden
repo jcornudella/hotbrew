@@ -4,6 +4,6 @@ Sections: 2
 Meta: sources=2 considered=3 deduped=0 rules=0
 Section 1: GitHub Trending [GitHub Trending] [gh-1]
 Section 2: Hacker News [Hacker News] [hn-1 hn-2]
-Item 1: 1.123 | GitHub Trending | karpathy/autoresearch | https://github.com/karpathy/autoresearch
-Item 2: 0.977 | Hacker News | Agent Safehouse | https://example.com/agent-safehouse
-Item 3: 0.825 | Hacker News | Compiler renaissance | https://example.com/compiler-renaissance
+Item 1: GitHub Trending | karpathy/autoresearch | https://github.com/karpathy/autoresearch
+Item 2: Hacker News | Agent Safehouse | https://example.com/agent-safehouse
+Item 3: Hacker News | Compiler renaissance | https://example.com/compiler-renaissance
