@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/jcornudella/hotbrew/internal/app"
 	"github.com/jcornudella/hotbrew/internal/config"
-	"github.com/jcornudella/hotbrew/internal/curation"
 	"github.com/jcornudella/hotbrew/internal/sanitize"
 	"github.com/jcornudella/hotbrew/internal/store"
 	"github.com/jcornudella/hotbrew/internal/store/repo"
@@ -25,11 +26,8 @@ func (r *Root) cmdDigest(args []string) error {
 	repo := repo.New(st)
 	defer repo.Close()
 
-	engine := curation.NewEngine(st)
-	window := cfg.GetDigestWindow()
-	maxItems := cfg.GetDigestMax()
-
-	digest, err := engine.GenerateDigest(window, maxItems, "Hotbrew Digest")
+	service := app.NewBriefingService(st, cfg)
+	digest, err := service.BuildDigest(context.Background(), app.BuildOptions{})
 	if err != nil {
 		return fmt.Errorf("generate digest: %w", err)
 	}

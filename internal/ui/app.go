@@ -12,8 +12,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jcornudella/hotbrew/internal/app"
 	"github.com/jcornudella/hotbrew/internal/config"
-	"github.com/jcornudella/hotbrew/internal/curation"
 	"github.com/jcornudella/hotbrew/internal/sinks"
 	"github.com/jcornudella/hotbrew/internal/sources/github"
 	"github.com/jcornudella/hotbrew/internal/sources/hackernews"
@@ -134,8 +134,8 @@ func (m Model) Init() tea.Cmd {
 // loadFromStore generates a digest from the store and converts to sections.
 func loadFromStore(st *store.Store, cfg *config.Config) tea.Cmd {
 	return func() tea.Msg {
-		engine := curation.NewEngine(st)
-		digest, err := engine.GenerateDigest(cfg.GetDigestWindow(), cfg.GetDigestMax(), "Hotbrew Digest")
+		service := app.NewBriefingService(st, cfg)
+		digest, err := service.BuildDigest(context.Background(), app.BuildOptions{})
 		if err != nil || digest == nil || len(digest.Items) == 0 {
 			// Fall back to live fetch if store is empty.
 			return fetchSections(cfg)()
