@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "id": 2001,
+      "name": "autoresearch",
+      "full_name": "karpathy/autoresearch",
+      "description": "Automated literature review workflows for AI researchers.",
+      "html_url": "https://github.com/karpathy/autoresearch",
+      "stargazers_count": 1500,
+      "forks_count": 120,
+      "language": "Go",
+      "created_at": "2026-03-01T08:00:00Z",
+      "updated_at": "2026-03-09T07:30:00Z",
+      "topics": ["ai", "research"],
+      "owner": {
+        "login": "karpathy",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4"
+      }
+    },
+    {
+      "id": 2002,
+      "name": "edge-inference",
+      "full_name": "supabase/edge-inference",
+      "description": "Run low-latency inference close to users with Supabase Edge Functions.",
+      "html_url": "https://github.com/supabase/edge-inference",
+      "stargazers_count": 875,
+      "forks_count": 44,
+      "language": "TypeScript",
+      "created_at": "2026-03-02T09:00:00Z",
+      "updated_at": "2026-03-09T06:00:00Z",
+      "topics": ["ai", "edge"],
+      "owner": {
+        "login": "supabase",
+        "avatar_url": "https://avatars.githubusercontent.com/u/2?v=4"
+      }
+    }
+  ]
+}
