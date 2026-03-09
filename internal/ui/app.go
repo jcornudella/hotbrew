@@ -15,9 +15,6 @@ import (
 	"github.com/jcornudella/hotbrew/internal/app"
 	"github.com/jcornudella/hotbrew/internal/config"
 	"github.com/jcornudella/hotbrew/internal/sinks"
-	"github.com/jcornudella/hotbrew/internal/sources/github"
-	"github.com/jcornudella/hotbrew/internal/sources/hackernews"
-	"github.com/jcornudella/hotbrew/internal/sources/hnsearch"
 	"github.com/jcornudella/hotbrew/internal/store"
 	"github.com/jcornudella/hotbrew/internal/ui/components"
 	"github.com/jcornudella/hotbrew/internal/ui/theme"
@@ -120,9 +117,9 @@ func NewModel(cfg *config.Config, st ...*store.Store) Model {
 
 // Init initializes the model
 func (m Model) Init() tea.Cmd {
-	loadCmd := fetchSections(m.cfg)
+	loadCmd := unavailableStoreMsg()
 	if m.store != nil {
-		loadCmd = loadFromStore(m.store, m.cfg)
+		loadCmd = loadFromStore(m.store, m.cfg, app.BuildOptions{SyncIfEmpty: true})
 	}
 	return tea.Batch(
 		m.spinner.Tick,
@@ -132,20 +129,18 @@ func (m Model) Init() tea.Cmd {
 }
 
 // loadFromStore generates a digest from the store and converts to sections.
-func loadFromStore(st *store.Store, cfg *config.Config) tea.Cmd {
+func loadFromStore(st *store.Store, cfg *config.Config, opts app.BuildOptions) tea.Cmd {
 	return func() tea.Msg {
 		service := app.NewBriefingService(st, cfg)
-		digest, err := service.BuildDigest(context.Background(), app.BuildOptions{})
-		if err != nil || digest == nil || len(digest.Items) == 0 {
-			// Fall back to live fetch if store is empty.
-			return fetchSections(cfg)()
+		digest, err := service.BuildDigest(context.Background(), opts)
+		if err != nil {
+			return errorMsg{err: err}
+		}
+		if digest == nil || len(digest.Items) == 0 {
+			return sectionsLoadedMsg{sections: nil}
 		}
 
 		sections := sinks.DigestToSections(digest)
-		if len(sections) == 0 {
-			return fetchSections(cfg)()
-		}
-
 		return sectionsLoadedMsg{sections: sections}
 	}
 }
@@ -157,55 +152,9 @@ func animTick() tea.Cmd {
 	})
 }
 
-// fetchSections fetches data from all enabled sources
-func fetchSections(cfg *config.Config) tea.Cmd {
+func unavailableStoreMsg() tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		var sections []*source.Section
-
-		// Fetch Hacker News if enabled
-		if src, ok := cfg.Sources["hackernews"]; ok && src.Enabled {
-			hn := hackernews.New()
-			section, err := hn.Fetch(ctx, source.Config{
-				Enabled:  src.Enabled,
-				Settings: src.Settings,
-			})
-			if err == nil && section != nil {
-				sections = append(sections, section)
-			}
-		}
-
-		// Claude Code & Vibe Coding search
-		vibeSearch := hnsearch.New(
-			"Claude Code & Vibe Coding",
-			[]string{"Claude Code", "vibe coding", "AI coding assistant", "Anthropic Claude"},
-			"🤖",
-		)
-		vibeSection, vibeErr := vibeSearch.Fetch(ctx, source.Config{
-			Enabled:  true,
-			Settings: map[string]any{"max": 8},
-		})
-		if vibeErr == nil && vibeSection != nil && len(vibeSection.Items) > 0 {
-			sections = append(sections, vibeSection)
-		}
-
-		// GitHub trending AI/coding repos
-		ghTrending := github.New(
-			"GitHub Trending",
-			[]string{"ai", "llm", "machine-learning", "gpt", "claude"},
-			"🐙",
-		)
-		ghSection, ghErr := ghTrending.Fetch(ctx, source.Config{
-			Enabled:  true,
-			Settings: map[string]any{"max": 6},
-		})
-		if ghErr == nil && ghSection != nil && len(ghSection.Items) > 0 {
-			sections = append(sections, ghSection)
-		}
-
-		return sectionsLoadedMsg{sections: sections}
+		return errorMsg{err: fmt.Errorf("store unavailable")}
 	}
 }
 
@@ -331,9 +280,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.state = StateLoading
 		m.statusMsg = ""
 		if m.store != nil {
-			return m, loadFromStore(m.store, m.cfg)
+			return m, loadFromStore(m.store, m.cfg, app.BuildOptions{ForceSync: true})
 		}
-		return m, fetchSections(m.cfg)
+		return m, unavailableStoreMsg()
 
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		// Quick jump to section
@@ -559,9 +508,9 @@ func (m Model) applyProfile(name string) (tea.Model, tea.Cmd) {
 	m.statusMsg = fmt.Sprintf("Profile switched to %s", name)
 	m.state = StateLoading
 	if m.store != nil {
-		return m, loadFromStore(m.store, m.cfg)
+		return m, loadFromStore(m.store, m.cfg, app.BuildOptions{SyncIfEmpty: true, ForceSync: true})
 	}
-	return m, fetchSections(m.cfg)
+	return m, unavailableStoreMsg()
 }
 
 func (m Model) saveProfileEditor() (tea.Model, tea.Cmd) {

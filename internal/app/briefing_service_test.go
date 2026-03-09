@@ -103,6 +103,49 @@ func TestBriefingServiceBuildHandlesEmptyStoreGracefully(t *testing.T) {
 	}
 }
 
+func TestBriefingServiceBuildSyncsWhenStoreEmptyAndSyncRequested(t *testing.T) {
+	st := openTestStore(t)
+	cfg := config.Default()
+	cfg.DigestWindow = "24h"
+	cfg.DigestMax = 10
+
+	svc := NewBriefingService(st, cfg)
+	svc.syncFunc = func(ctx context.Context) error {
+		_ = ctx
+		sourceID, err := st.GetOrCreateSource("Hacker News", "hackernews", "", "🔶")
+		if err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		return st.InsertItem(trss.Item{
+			ID:           "synced-1",
+			Fingerprint:  "synced-fp-1",
+			Title:        "Freshly synced item",
+			URL:          "https://example.com/fresh",
+			URLCanonical: "https://example.com/fresh",
+			Source:       trss.ItemSource{Name: "Hacker News", Icon: "🔶", Via: "hackernews"},
+			PublishedAt:  now,
+			FetchedAt:    now,
+			Summary:      "Loaded via sync",
+		}, sourceID)
+	}
+
+	briefing, err := svc.Build(context.Background(), BuildOptions{SyncIfEmpty: true})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	if briefing == nil {
+		t.Fatal("Build returned nil briefing")
+	}
+	if len(briefing.Items) != 1 {
+		t.Fatalf("expected 1 item after sync, got %d", len(briefing.Items))
+	}
+	if briefing.Items[0].Item.Title != "Freshly synced item" {
+		t.Fatalf("unexpected item title: got %q", briefing.Items[0].Item.Title)
+	}
+}
+
 func openTestStore(t *testing.T) *store.Store {
 	t.Helper()
 

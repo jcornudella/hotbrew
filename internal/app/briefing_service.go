@@ -12,8 +12,9 @@ import (
 
 // BriefingService builds a canonical briefing for CLI and TUI surfaces.
 type BriefingService struct {
-	store  *store.Store
-	config *config.Config
+	store    *store.Store
+	config   *config.Config
+	syncFunc func(context.Context) error
 }
 
 // BuildOptions controls how the briefing should be built.
@@ -24,7 +25,11 @@ type BuildOptions struct {
 
 // NewBriefingService creates a new service instance.
 func NewBriefingService(st *store.Store, cfg *config.Config) *BriefingService {
-	return &BriefingService{store: st, config: cfg}
+	service := &BriefingService{store: st, config: cfg}
+	service.syncFunc = func(ctx context.Context) error {
+		return syncStore(ctx, st, cfg)
+	}
+	return service
 }
 
 // Build creates a briefing from the local store.
@@ -37,11 +42,39 @@ func (s *BriefingService) Build(ctx context.Context, opts BuildOptions) (*intel.
 }
 
 // BuildDigest generates the current curated digest via the canonical service.
-func (s *BriefingService) BuildDigest(_ context.Context, _ BuildOptions) (*trss.Digest, error) {
+func (s *BriefingService) BuildDigest(ctx context.Context, opts BuildOptions) (*trss.Digest, error) {
 	if s == nil || s.store == nil || s.config == nil {
 		return trss.NewDigest("Hotbrew Digest", "24h", 25), nil
 	}
 
+	if opts.ForceSync {
+		if err := s.runSync(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	digest, err := s.generateDigest()
+	if err != nil {
+		return nil, err
+	}
+	if !opts.SyncIfEmpty || (digest != nil && len(digest.Items) > 0) {
+		return digest, nil
+	}
+
+	if err := s.runSync(ctx); err != nil {
+		return nil, err
+	}
+	return s.generateDigest()
+}
+
+func (s *BriefingService) runSync(ctx context.Context) error {
+	if s.syncFunc == nil {
+		return nil
+	}
+	return s.syncFunc(ctx)
+}
+
+func (s *BriefingService) generateDigest() (*trss.Digest, error) {
 	engine := curation.NewEngine(s.store)
 	return engine.GenerateDigest(s.config.GetDigestWindow(), s.config.GetDigestMax(), "Hotbrew Digest")
 }
