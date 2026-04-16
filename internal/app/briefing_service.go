@@ -45,6 +45,7 @@ func (s *BriefingService) Build(ctx context.Context, opts BuildOptions) (*intel.
 	if digest != nil && len(digest.Items) > 0 {
 		b.Clusters = clustering.Cluster(digest.Items)
 		briefing.Assemble(b)
+		briefing.Balance(b, briefing.DefaultBalanceLimits())
 		if s.store != nil {
 			_ = s.store.ReplaceClusters(b.Clusters)
 			s.hydrateBreakdowns(b)
