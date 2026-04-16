@@ -2,7 +2,7 @@ package store
 
 import "fmt"
 
-const currentVersion = 2
+const currentVersion = 3
 
 var migrations = []string{
 	// Version 1: initial schema
@@ -89,6 +89,21 @@ var migrations = []string{
 		rating     INTEGER NOT NULL,
 		note       TEXT,
 		created_at TEXT NOT NULL DEFAULT (datetime('now'))
+	);
+	`,
+	// Version 3: derived ranking features persisted per item
+	`
+	CREATE TABLE IF NOT EXISTS item_features (
+		item_id        TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+		freshness      REAL NOT NULL DEFAULT 0,
+		authority      REAL NOT NULL DEFAULT 0,
+		engagement     REAL NOT NULL DEFAULT 0,
+		resonance      REAL NOT NULL DEFAULT 0,
+		novelty        REAL NOT NULL DEFAULT 0,
+		topic_match    REAL NOT NULL DEFAULT 0,
+		repeat_penalty REAL NOT NULL DEFAULT 0,
+		content_fit    REAL NOT NULL DEFAULT 0,
+		computed_at    TEXT NOT NULL DEFAULT (datetime('now'))
 	);
 	`,
 }

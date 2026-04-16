@@ -57,6 +57,31 @@ func TestUserBoostPrefersMatchingTagThenSource(t *testing.T) {
 	}
 }
 
+func TestComputeSignalsReturnsPhaseOneFeatures(t *testing.T) {
+	now := time.Date(2026, 3, 9, 12, 0, 0, 0, time.UTC)
+	item := trss.Item{
+		PublishedAt: now.Add(-24 * time.Hour),
+		Source:      trss.ItemSource{Name: "Hacker News"},
+		Engagement:  map[string]any{"points": 100},
+	}
+
+	signals := ComputeSignals(item, map[string]float64{"Hacker News": 1.5}, now)
+
+	if math.Abs(signals.Freshness-math.Exp(-1)) > 0.000001 {
+		t.Fatalf("freshness mismatch: got %f", signals.Freshness)
+	}
+	if signals.SourceAuthority != 1.5 {
+		t.Fatalf("authority mismatch: got %f want 1.5", signals.SourceAuthority)
+	}
+	wantEng := math.Log(1+100) / math.Log(1+500)
+	if math.Abs(signals.Engagement-wantEng) > 0.000001 {
+		t.Fatalf("engagement mismatch: got %f want %f", signals.Engagement, wantEng)
+	}
+	if signals.Resonance != 0 || signals.Novelty != 0 || signals.TopicMatch != 0 {
+		t.Fatalf("later-phase signals should stay zero in PR 6, got %+v", signals)
+	}
+}
+
 func TestRankItemsMatchesLegacyFinalScore(t *testing.T) {
 	now := time.Date(2026, 3, 9, 12, 0, 0, 0, time.UTC)
 	published := now.Add(-6 * time.Hour)

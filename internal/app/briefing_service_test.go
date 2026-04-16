@@ -146,6 +146,54 @@ func TestBriefingServiceBuildSyncsWhenStoreEmptyAndSyncRequested(t *testing.T) {
 	}
 }
 
+func TestBriefingServiceBuildPersistsItemFeatures(t *testing.T) {
+	st := openTestStore(t)
+	cfg := config.Default()
+	cfg.DigestWindow = "24h"
+	cfg.DigestMax = 10
+
+	sourceID, err := st.GetOrCreateSource("Hacker News", "hackernews", "", "🔶")
+	if err != nil {
+		t.Fatalf("GetOrCreateSource: %v", err)
+	}
+	now := time.Now().UTC()
+	item := trss.Item{
+		ID:          "hn-features",
+		Fingerprint: "fp-features",
+		Title:       "With engagement",
+		URL:         "https://example.com/features",
+		Source:      trss.ItemSource{Name: "Hacker News", Icon: "🔶", Via: "hackernews"},
+		PublishedAt: now.Add(-30 * time.Minute),
+		FetchedAt:   now,
+		Engagement:  map[string]any{"points": 300.0, "comments": 50.0},
+	}
+	if err := st.InsertItem(item, sourceID); err != nil {
+		t.Fatalf("InsertItem: %v", err)
+	}
+
+	svc := NewBriefingService(st, cfg)
+	if _, err := svc.Build(context.Background(), BuildOptions{}); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	features, err := st.GetItemFeatures("hn-features")
+	if err != nil {
+		t.Fatalf("GetItemFeatures: %v", err)
+	}
+	if features == nil {
+		t.Fatal("expected features to be persisted")
+	}
+	if features.Signals.Freshness <= 0 {
+		t.Fatalf("expected positive freshness, got %f", features.Signals.Freshness)
+	}
+	if features.Signals.Engagement <= 0 {
+		t.Fatalf("expected positive engagement, got %f", features.Signals.Engagement)
+	}
+	if features.Signals.SourceAuthority == 0 {
+		t.Fatalf("expected non-zero authority, got %f", features.Signals.SourceAuthority)
+	}
+}
+
 func openTestStore(t *testing.T) *store.Store {
 	t.Helper()
 

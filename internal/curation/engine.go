@@ -4,14 +4,16 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jcornudella/hotbrew/internal/intel"
+	"github.com/jcornudella/hotbrew/internal/ranking"
 	"github.com/jcornudella/hotbrew/internal/store"
 	"github.com/jcornudella/hotbrew/pkg/trss"
 )
 
 // Engine orchestrates the curation pipeline.
 type Engine struct {
-	Store    *store.Store
-	Limits   DiversityLimits
+	Store  *store.Store
+	Limits DiversityLimits
 }
 
 // NewEngine creates a curation engine with default settings.
@@ -26,51 +28,37 @@ func NewEngine(st *store.Store) *Engine {
 // 1. Load items from store within the time window
 // 2. Apply user rules (mute/boost)
 // 3. Dedup (fingerprint + fuzzy title)
-// 4. Score (recency * source_weight * engagement * boost)
+// 4. Score via ranking package and persist derived features
 // 5. Sort by score
 // 6. Enforce diversity limits
 // 7. Package as trss.Digest
 func (e *Engine) GenerateDigest(window time.Duration, maxItems int, title string) (*trss.Digest, error) {
-	// 1. Load items
-	items, err := e.Store.ListItems(store.ItemFilter{
-		Since: window,
-	})
+	items, err := e.Store.ListItems(store.ItemFilter{Since: window})
 	if err != nil {
 		return nil, err
 	}
 	totalConsidered := len(items)
 
-	// 2. Load and apply rules
 	rules, _ := e.Store.ListRules()
 	filtered, boosts := ApplyRules(items, rules)
 	rulesApplied := CountAppliedRules(totalConsidered, len(filtered), boosts)
 
-	// 3. Dedup
 	deduped := Dedup(filtered, e.Store)
 	itemsDeduped := len(filtered) - len(deduped)
 
-	// 4. Get source weights from store
 	sourceWeights := e.loadSourceWeights()
+	ranked := ranking.RankItems(deduped, sourceWeights, boosts, time.Now())
+	e.persistFeatures(ranked)
 
-	// 5. Score
-	scored := ScoreItems(deduped, sourceWeights, boosts)
+	scored := applyScores(deduped, ranked)
+	sort.Slice(scored, func(i, j int) bool { return scored[i].Score > scored[j].Score })
 
-	// 6. Sort by score descending
-	sort.Slice(scored, func(i, j int) bool {
-		return scored[i].Score > scored[j].Score
-	})
-
-	// 7. Enforce diversity
 	diverse := EnforceDiversity(scored, e.Limits, maxItems)
-
-	// Update computed scores in store
 	for _, item := range diverse {
 		e.Store.UpdateScore(item.ID, item.Score)
 	}
 
-	// Build digest
-	windowStr := window.String()
-	digest := trss.NewDigest(title, windowStr, maxItems)
+	digest := trss.NewDigest(title, window.String(), maxItems)
 	digest.Items = diverse
 	digest.ItemCount = len(diverse)
 	digest.Meta = trss.DigestMeta{
@@ -79,11 +67,38 @@ func (e *Engine) GenerateDigest(window time.Duration, maxItems int, title string
 		ItemsDeduped:    itemsDeduped,
 		RulesApplied:    rulesApplied,
 	}
-
-	// Build sections by source
 	digest.Sections = e.buildSections(diverse)
-
 	return digest, nil
+}
+
+// persistFeatures upserts the derived signals for every ranked item so that
+// later stages (and future briefings) can inspect them without recomputing.
+func (e *Engine) persistFeatures(ranked []intel.ScoredItem) {
+	if e.Store == nil {
+		return
+	}
+	for _, r := range ranked {
+		signals := intel.ItemSignals{
+			Freshness:       r.Breakdown.Freshness,
+			SourceAuthority: r.Breakdown.Authority,
+			Engagement:      r.Breakdown.Engagement,
+			TopicMatch:      r.Breakdown.TopicMatch,
+		}
+		_ = e.Store.UpsertItemFeatures(r.Item.ID, signals)
+	}
+}
+
+// applyScores zips ranking scores back onto the source trss items used by
+// the downstream diversity/section steps that still operate on trss.Item.
+func applyScores(items []trss.Item, ranked []intel.ScoredItem) []trss.Item {
+	scored := make([]trss.Item, len(items))
+	for i, item := range items {
+		if i < len(ranked) {
+			item.Score = ranked[i].Score
+		}
+		scored[i] = item
+	}
+	return scored
 }
 
 // loadSourceWeights retrieves weights from the sources table.
@@ -119,10 +134,7 @@ func (e *Engine) buildSections(items []trss.Item) []trss.DigestSection {
 		name := item.Source.Name
 		sec, ok := sectionMap[name]
 		if !ok {
-			sec = &trss.DigestSection{
-				Name: name,
-				Icon: item.Source.Icon,
-			}
+			sec = &trss.DigestSection{Name: name, Icon: item.Source.Icon}
 			sectionMap[name] = sec
 			order = append(order, name)
 		}
