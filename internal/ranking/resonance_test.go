@@ -183,7 +183,7 @@ func TestRankItemsWithAppliesPreDedupResonanceToSurvivor(t *testing.T) {
 		t.Fatalf("post-dedup resonance should collapse to neutral, got %f", postDedup["hn"])
 	}
 
-	ranked := RankItemsWith(survivors, nil, nil, now, resonance, nil)
+	ranked := RankItemsWith(survivors, nil, nil, now, resonance, nil, nil)
 	if len(ranked) != 1 {
 		t.Fatalf("expected 1 ranked item, got %d", len(ranked))
 	}

@@ -50,6 +50,31 @@ var labels = []Label{
 	}},
 }
 
+// KnownLabels returns the phase-1 keyword-based labels plus the
+// source-type-derived "repo" shortcut. Callers (CLI listings,
+// preference pickers) use this to show users the set of slugs they
+// can follow or mute — keeping the source of truth in one place so
+// adding a label here automatically flows through.
+func KnownLabels() []Label {
+	out := make([]Label, 0, len(labels)+2)
+	out = append(out, labels...)
+	out = append(out, Label{Slug: "repo", Display: "Repo of the Day"})
+	out = append(out, Label{Slug: "general", Display: "General"})
+	return out
+}
+
+// IsKnownLabel reports whether slug matches one of the canonical
+// theme slugs. Used by CLI commands to reject typos before writing
+// a preference row the ranker would silently ignore.
+func IsKnownLabel(slug string) bool {
+	for _, label := range KnownLabels() {
+		if label.Slug == slug {
+			return true
+		}
+	}
+	return false
+}
+
 // LabelForItems picks the strongest theme label for a cluster by
 // scanning title, summary, tags, and domain across its items. Returns
 // ("general", "General") when no rule matches — keeping every cluster

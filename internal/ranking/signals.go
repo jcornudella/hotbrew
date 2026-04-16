@@ -157,6 +157,34 @@ func EngagementScore(engagement map[string]any) float64 {
 	return score
 }
 
+// Theme preference multipliers. Numbers are deliberately loud so
+// the signal survives the stack of other multiplicative factors —
+// a followed theme nudges above mid-tier freshness, and a muted
+// theme multiplies to zero so those items sort to the bottom
+// regardless of how strong their other signals are.
+const (
+	FollowedThemeBoost = 1.35
+	MutedThemeBoost    = 0.0
+)
+
+// ThemeMultiplier maps a theme slug and the user's preference map
+// to a multiplicative factor applied on top of TopicMatch.
+// Unknown or absent preferences are neutral (1.0) so the ranker
+// behaves identically for users who never followed anything.
+func ThemeMultiplier(slug string, preferences map[string]string) float64 {
+	if slug == "" || len(preferences) == 0 {
+		return 1.0
+	}
+	switch preferences[slug] {
+	case "follow":
+		return FollowedThemeBoost
+	case "mute":
+		return MutedThemeBoost
+	default:
+		return 1.0
+	}
+}
+
 // UserBoost applies tag/source boosts to a TRSS item.
 func UserBoost(item trss.Item, boosts map[string]float64) float64 {
 	if boosts == nil {

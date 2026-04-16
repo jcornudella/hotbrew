@@ -2,7 +2,7 @@ package store
 
 import "fmt"
 
-const currentVersion = 5
+const currentVersion = 6
 
 var migrations = []string{
 	// Version 1: initial schema
@@ -145,6 +145,17 @@ var migrations = []string{
 	CREATE INDEX IF NOT EXISTS idx_feedback_events_action ON feedback_events(action);
 	CREATE INDEX IF NOT EXISTS idx_feedback_events_item ON feedback_events(item_id);
 	CREATE INDEX IF NOT EXISTS idx_feedback_events_created_at ON feedback_events(created_at);
+	`,
+	// Version 6: theme preferences — first explicit personalization
+	// knob. One row per theme slug with a 'follow' or 'mute' state;
+	// ranking consults the table via store.ListThemePreferences() to
+	// adjust TopicMatch in downstream briefings.
+	`
+	CREATE TABLE IF NOT EXISTS theme_preferences (
+		slug       TEXT PRIMARY KEY,
+		state      TEXT NOT NULL CHECK(state IN ('follow','mute')),
+		updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+	);
 	`,
 }
 
