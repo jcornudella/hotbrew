@@ -24,6 +24,24 @@ type Config struct {
 	DigestWindow string `yaml:"digest_window,omitempty"` // e.g. "24h", "12h"
 	DigestMax    int    `yaml:"digest_max,omitempty"`    // max items in digest
 	StreamLog    string `yaml:"stream_log,omitempty"`    // path to stream.log
+
+	AI *AIConfig `yaml:"ai,omitempty"`
+}
+
+// AIConfig controls optional AI-powered summary enrichment.
+// Leaving the whole section empty (or omitting Provider) disables
+// AI — the app falls back to deterministic template summaries.
+//
+// APIKeyEnv is the name of an environment variable holding the key,
+// not the key itself. Storing the literal key in hotbrew.yaml is
+// possible (via APIKey) but discouraged; the env form keeps secrets
+// out of dotfiles.
+type AIConfig struct {
+	Provider  string `yaml:"provider,omitempty"`  // "", "anthropic"
+	Model     string `yaml:"model,omitempty"`     // provider-specific
+	APIKey    string `yaml:"api_key,omitempty"`   // literal key (discouraged)
+	APIKeyEnv string `yaml:"api_key_env,omitempty"` // env var holding the key
+	MaxTokens int    `yaml:"max_tokens,omitempty"`
 }
 
 // CustomThemeConfig holds custom theme colors
