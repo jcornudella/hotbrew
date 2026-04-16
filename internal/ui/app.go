@@ -250,6 +250,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Open URL in browser
 		if item := m.selectedItem(); item != nil && item.URL != "" {
 			openURL(item.URL)
+			m.recordEvent(store.FeedbackActionOpen, itemStoreID(item), "")
 		}
 
 	case "c":
@@ -264,12 +265,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Save item
 		if m.store != nil {
 			if item := m.selectedItem(); item != nil {
-				id := item.ID
-				if meta, ok := item.Metadata["trss_id"].(string); ok {
-					id = meta
-				}
+				id := itemStoreID(item)
 				if err := m.store.MarkSaved(id); err == nil {
 					m.statusMsg = "★ Saved"
+					m.recordEvent(store.FeedbackActionSave, id, "")
 				}
 			}
 		}
@@ -278,17 +277,16 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Toggle read/unread
 		if m.store != nil {
 			if item := m.selectedItem(); item != nil {
-				id := item.ID
-				if meta, ok := item.Metadata["trss_id"].(string); ok {
-					id = meta
-				}
+				id := itemStoreID(item)
 				state := m.store.GetState(id)
 				if state == "unread" {
 					m.store.MarkRead(id)
 					m.statusMsg = "✓ Marked read"
+					m.recordEvent(store.FeedbackActionRead, id, "")
 				} else {
 					m.store.MarkUnread(id)
 					m.statusMsg = "○ Marked unread"
+					m.recordEvent(store.FeedbackActionUnread, id, "")
 				}
 			}
 		}
@@ -301,6 +299,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if domain != "" {
 					m.store.AddRule("mute_domain", domain, "")
 					m.statusMsg = fmt.Sprintf("🔇 Muted %s", domain)
+					m.recordEvent(store.FeedbackActionMuteDomain, itemStoreID(item), domain)
 				}
 			}
 		}
@@ -571,6 +570,7 @@ func (m Model) openExplainOverlay() Model {
 	}
 	m.overlayTitle = "Why it matters"
 	m.overlayText = exp.WhyItMatters
+	m.recordEvent(store.FeedbackActionExplainViewed, exp.ItemID, "explain")
 	return m
 }
 
@@ -587,7 +587,31 @@ func (m Model) openWhyOverlay() Model {
 	}
 	m.overlayTitle = "Why you're seeing this"
 	m.overlayText = strings.Join(lines, "\n")
+	m.recordEvent(store.FeedbackActionExplainViewed, exp.ItemID, "why")
 	return m
+}
+
+// recordEvent is the model's fire-and-forget feedback hook. We
+// swallow errors deliberately — a missing event row never justifies
+// failing the user-visible action (or crashing a TUI render).
+func (m Model) recordEvent(action, itemID, target string) {
+	if m.store == nil {
+		return
+	}
+	_ = m.store.RecordFeedbackEvent(action, itemID, target)
+}
+
+// itemStoreID prefers the trss_id stored in metadata (which matches
+// the store's item id after the intel-to-source conversion) and
+// falls back to the source.Item's own ID for older code paths.
+func itemStoreID(item *source.Item) string {
+	if item == nil {
+		return ""
+	}
+	if trssID, ok := item.Metadata["trss_id"].(string); ok && trssID != "" {
+		return trssID
+	}
+	return item.ID
 }
 
 func (m Model) explanationForSelection() (briefing.Explanation, bool) {

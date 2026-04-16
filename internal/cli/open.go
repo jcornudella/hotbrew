@@ -33,9 +33,13 @@ func Open(st *store.Store, idPrefix string) {
 	openBrowser(item.URL)
 	fmt.Printf("✓ Opened: %s\n", item.Title)
 
+	_ = st.RecordFeedbackEvent(store.FeedbackActionOpen, item.ID, "")
+
 	// Mark as read
 	if err := st.MarkRead(item.ID); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not mark as read: %v\n", err)
+	} else {
+		_ = st.RecordFeedbackEvent(store.FeedbackActionRead, item.ID, "")
 	}
 }
 
@@ -56,6 +60,7 @@ func Save(st *store.Store, idPrefix string) {
 		fmt.Fprintf(os.Stderr, "Error saving item: %v\n", err)
 		os.Exit(1)
 	}
+	_ = st.RecordFeedbackEvent(store.FeedbackActionSave, item.ID, "")
 
 	fmt.Printf("★ Saved: %s\n", item.Title)
 }

@@ -21,6 +21,7 @@ func Mute(st *store.Store, domain string) {
 		fmt.Fprintf(os.Stderr, "Error muting domain: %v\n", err)
 		os.Exit(1)
 	}
+	_ = st.RecordFeedbackEvent(store.FeedbackActionMuteDomain, "", domain)
 
 	fmt.Printf("🔇 Muted: %s\n", domain)
 	fmt.Println("  Items from this domain will be excluded from future digests.")
@@ -40,6 +41,7 @@ func Boost(st *store.Store, tag string) {
 		fmt.Fprintf(os.Stderr, "Error boosting tag: %v\n", err)
 		os.Exit(1)
 	}
+	_ = st.RecordFeedbackEvent(store.FeedbackActionBoost, "", tag)
 
 	fmt.Printf("🔊 Boosted: %s\n", tag)
 	fmt.Println("  Items with this tag will rank higher in future digests.")
