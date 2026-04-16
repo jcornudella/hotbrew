@@ -29,7 +29,10 @@ func TestBriefingBuildMatchesGolden(t *testing.T) {
 		t.Fatalf("GetOrCreateSource GitHub: %v", err)
 	}
 
-	now := time.Date(2026, 3, 9, 8, 0, 0, 0, time.UTC)
+	// Seed relative to wall clock so items stay inside the digest window
+	// regardless of when the test runs. Golden output omits timestamps,
+	// so relative scores — and therefore sort order — remain deterministic.
+	now := time.Now().UTC()
 	seed := []struct {
 		sourceID int
 		item     trss.Item
