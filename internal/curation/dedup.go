@@ -20,7 +20,7 @@ func Dedup(items []trss.Item, st *store.Store) []trss.Item {
 		// Exact fingerprint match
 		if idx, ok := seen[item.Fingerprint]; ok {
 			if st != nil {
-				st.InsertDedupEdge(result[idx].ID, item.ID, 1.0)
+				_ = st.InsertDedupEdge(result[idx].ID, item.ID, 1.0)
 			}
 			continue
 		}
@@ -29,7 +29,7 @@ func Dedup(items []trss.Item, st *store.Store) []trss.Item {
 		if item.URLCanonical != "" {
 			if idx, ok := urlSeen[item.URLCanonical]; ok {
 				if st != nil {
-					st.InsertDedupEdge(result[idx].ID, item.ID, 0.95)
+					_ = st.InsertDedupEdge(result[idx].ID, item.ID, 0.95)
 				}
 				continue
 			}
@@ -38,7 +38,7 @@ func Dedup(items []trss.Item, st *store.Store) []trss.Item {
 		// Fuzzy title match
 		if idx, dup := fuzzyTitleMatch(item.Title, result); dup {
 			if st != nil {
-				st.InsertDedupEdge(result[idx].ID, item.ID, 0.8)
+				_ = st.InsertDedupEdge(result[idx].ID, item.ID, 0.8)
 			}
 			continue
 		}

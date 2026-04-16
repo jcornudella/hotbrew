@@ -111,7 +111,7 @@ func (s *Source) fetchSubreddit(ctx context.Context, subreddit string, limit int
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("reddit r/%s: status %d", subreddit, resp.StatusCode)

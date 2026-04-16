@@ -78,5 +78,5 @@ func openBrowser(url string) {
 		fmt.Printf("Open: %s\n", url)
 		return
 	}
-	cmd.Start()
+	_ = cmd.Start()
 }

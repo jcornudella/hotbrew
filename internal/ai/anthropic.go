@@ -113,7 +113,7 @@ func (p *AnthropicProvider) Complete(ctx context.Context, prompt string) (string
 	if err != nil {
 		return "", fmt.Errorf("anthropic: transport: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -23,7 +23,7 @@ func (s *StreamLog) Deliver(d *trss.Digest) error {
 	if err != nil {
 		return fmt.Errorf("open stream log: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	return trss.EncodeItems(f, d.Items)
 }

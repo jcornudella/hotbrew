@@ -51,7 +51,7 @@ func (s *Store) UnreadCount() int {
 	total := s.ItemCount()
 
 	var readCount int
-	s.db.QueryRow("SELECT COUNT(*) FROM item_state WHERE state != 'unread'").Scan(&readCount)
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM item_state WHERE state != 'unread'").Scan(&readCount)
 
 	return total - readCount
 }
@@ -64,7 +64,7 @@ func (s *Store) CountByState() map[string]int {
 	if err != nil {
 		return counts
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var state string
@@ -109,7 +109,7 @@ func (s *Store) GetDedupedIDs(itemID string) []string {
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var ids []string
 	for rows.Next() {
@@ -124,7 +124,7 @@ func (s *Store) GetDedupedIDs(itemID string) []string {
 // RecentItemsSince returns items fetched after the given time.
 func (s *Store) RecentItemsSince(since time.Time) int {
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM items WHERE fetched_at >= ?",
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM items WHERE fetched_at >= ?",
 		since.UTC().Format(time.RFC3339)).Scan(&count)
 	return count
 }

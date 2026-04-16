@@ -68,7 +68,7 @@ func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section,
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("lobsters: status %d", resp.StatusCode)

@@ -40,7 +40,7 @@ func syncSource(ctx context.Context, st *store.Store, name string, src source.So
 		// Track the error in the store if we have a source ID.
 		sourceID, _ := st.GetOrCreateSource(src.Name(), name, "", src.Icon())
 		if sourceID > 0 {
-			st.IncrSyncErrors(sourceID)
+			_ = st.IncrSyncErrors(sourceID)
 		}
 		return Result{SourceName: name, Err: fmt.Errorf("fetch %s: %w", name, err)}
 	}
@@ -67,7 +67,7 @@ func syncSource(ctx context.Context, st *store.Store, name string, src source.So
 	}
 
 	// Update sync timestamp.
-	st.UpdateLastSync(sourceID)
+	_ = st.UpdateLastSync(sourceID)
 
 	return Result{SourceName: name, ItemCount: inserted}
 }

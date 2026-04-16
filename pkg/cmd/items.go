@@ -34,7 +34,7 @@ func runList(st *store.Store, args []string) error {
 		case "--top":
 			if i+1 < len(args) {
 				i++
-				fmt.Sscanf(args[i], "%d", &opts.Top)
+				_, _ = fmt.Sscanf(args[i], "%d", &opts.Top)
 			}
 		}
 	}

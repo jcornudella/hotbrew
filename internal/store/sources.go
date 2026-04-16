@@ -62,7 +62,7 @@ func (s *Store) ListSources() ([]SourceRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var sources []SourceRecord
 	for rows.Next() {
@@ -81,7 +81,7 @@ func (s *Store) ListSources() ([]SourceRecord, error) {
 
 		src.Enabled = enabled == 1
 		src.AddedAt, _ = time.Parse(time.RFC3339, addedAt)
-		json.Unmarshal([]byte(settingsJSON), &src.Settings)
+		_ = json.Unmarshal([]byte(settingsJSON), &src.Settings)
 		if lastSync != nil {
 			t, _ := time.Parse(time.RFC3339, *lastSync)
 			src.LastSync = &t

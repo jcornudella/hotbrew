@@ -81,7 +81,7 @@ func Curate(st *store.Store, opts CurateOptions) {
 	}
 
 	// Also mark it as saved.
-	st.MarkSaved(item.ID)
+	_ = st.MarkSaved(item.ID)
 
 	fmt.Printf("📌 Curated: %s\n", opts.Title)
 	fmt.Printf("   ID: %s\n", id)
@@ -105,7 +105,7 @@ func fetchTitle(url string) string {
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read up to 64KB to find the title tag.
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))

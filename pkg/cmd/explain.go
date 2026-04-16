@@ -34,7 +34,7 @@ func runExplanation(args []string, format func(briefing.Explanation) string) err
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	service := app.NewBriefingService(st, cfg)
 	b, err := service.Build(context.Background(), app.BuildOptions{})

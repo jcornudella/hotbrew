@@ -126,7 +126,7 @@ func fetchTopStoryIDs(ctx context.Context, limit int) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var ids []int
 	if err := json.NewDecoder(resp.Body).Decode(&ids); err != nil {
@@ -170,7 +170,7 @@ func fetchStory(ctx context.Context, id int) (*Story, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var story Story
 	if err := json.NewDecoder(resp.Body).Decode(&story); err != nil {

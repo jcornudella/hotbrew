@@ -38,7 +38,7 @@ func (r *Root) cmdSync(args []string) error {
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	registry := buildRegistry(cfg)
 
@@ -75,7 +75,7 @@ func (r *Root) cmdSyncRemote() error {
 	if err != nil {
 		return fmt.Errorf("connect server: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == 404 {
 		fmt.Println("Invalid token. Please check your token or subscribe at https://hotbrew.dev")

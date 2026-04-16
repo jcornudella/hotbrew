@@ -48,7 +48,7 @@ func (s *Store) GetDigestsSince(since time.Time) ([]*trss.Digest, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var digests []*trss.Digest
 	for rows.Next() {
