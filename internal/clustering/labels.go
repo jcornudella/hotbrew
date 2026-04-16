@@ -116,11 +116,42 @@ func countKeywords(text string, keywords []string) int {
 		if kw == "" {
 			continue
 		}
-		if strings.Contains(text, kw) {
+		if containsKeyword(text, kw) {
 			hits++
 		}
 	}
 	return hits
+}
+
+// containsKeyword looks for kw in text. Multi-word keywords match as
+// substrings (they're distinctive enough not to collide). Single-word
+// keywords require a word boundary so short tokens like "ai" don't
+// match inside unrelated words like "renaissance" or "mainline".
+func containsKeyword(text, kw string) bool {
+	if strings.Contains(kw, " ") {
+		return strings.Contains(text, kw)
+	}
+	start := 0
+	for {
+		rel := strings.Index(text[start:], kw)
+		if rel == -1 {
+			return false
+		}
+		lo := start + rel
+		hi := lo + len(kw)
+		if !isWordChar(text, lo-1) && !isWordChar(text, hi) {
+			return true
+		}
+		start = lo + 1
+	}
+}
+
+func isWordChar(text string, i int) bool {
+	if i < 0 || i >= len(text) {
+		return false
+	}
+	c := text[i]
+	return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
 }
 
 // SortLabels returns labels sorted alphabetically by slug — used for

@@ -38,12 +38,18 @@ type ItemFilter struct {
 
 // ListItems queries items with filters, ordered by score.
 func (s *Store) ListItems(f ItemFilter) ([]trss.Item, error) {
+	// Join sources so downstream stages (labelling, routing) can see
+	// the source type — otherwise Via is empty after round-trip and
+	// consumers like clustering.labelFromSourceType silently fail.
 	query := `SELECT i.id, i.fingerprint, i.title, i.url, i.url_canonical,
-		i.source_name, i.published_at, i.fetched_at, i.summary, i.body,
+		i.source_name, COALESCE(src.kind,'') AS source_kind,
+		COALESCE(src.icon,'') AS source_icon,
+		i.published_at, i.fetched_at, i.summary, i.body,
 		i.tags, i.score_raw, i.score_computed, i.engagement, i.meta,
 		COALESCE(s.state, 'unread') as state
 		FROM items i
 		LEFT JOIN item_state s ON i.id = s.item_id
+		LEFT JOIN sources src ON i.source_id = src.id
 		WHERE 1=1`
 
 	var args []any
@@ -83,7 +89,8 @@ func (s *Store) ListItems(f ItemFilter) ([]trss.Item, error) {
 
 		err := rows.Scan(
 			&item.ID, &item.Fingerprint, &item.Title, &item.URL, &item.URLCanonical,
-			&item.Source.Name, &pubAt, &fetchAt,
+			&item.Source.Name, &item.Source.Via, &item.Source.Icon,
+			&pubAt, &fetchAt,
 			&item.Summary, &item.Body, &tagsJSON,
 			&item.Score, &item.Score, &engJSON, &metaJSON, &state,
 		)

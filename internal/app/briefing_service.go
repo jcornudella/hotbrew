@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 
+	"github.com/jcornudella/hotbrew/internal/briefing"
 	"github.com/jcornudella/hotbrew/internal/clustering"
 	"github.com/jcornudella/hotbrew/internal/config"
 	"github.com/jcornudella/hotbrew/internal/curation"
@@ -40,15 +41,15 @@ func (s *BriefingService) Build(ctx context.Context, opts BuildOptions) (*intel.
 		return nil, err
 	}
 
-	briefing := briefingFromDigest(digest)
+	b := briefingFromDigest(digest)
 	if digest != nil && len(digest.Items) > 0 {
-		clusters := clustering.Cluster(digest.Items)
-		briefing.Clusters = clusters
+		b.Clusters = clustering.Cluster(digest.Items)
+		briefing.Assemble(b)
 		if s.store != nil {
-			_ = s.store.ReplaceClusters(clusters)
+			_ = s.store.ReplaceClusters(b.Clusters)
 		}
 	}
-	return briefing, nil
+	return b, nil
 }
 
 // BuildDigest generates the current curated digest via the canonical service.
@@ -89,15 +90,19 @@ func (s *BriefingService) generateDigest() (*trss.Digest, error) {
 	return engine.GenerateDigest(s.config.GetDigestWindow(), s.config.GetDigestMax(), "Hotbrew Digest")
 }
 
+// briefingFromDigest copies non-assembly fields off the raw digest.
+// Sections are intentionally skipped here — they are rebuilt by
+// briefing.Assemble once clusters exist, so the theme-based output
+// always wins over the digest's source-based grouping.
 func briefingFromDigest(digest *trss.Digest) *intel.Briefing {
-	briefing := &intel.Briefing{Title: "Hotbrew Digest"}
+	b := &intel.Briefing{Title: "Hotbrew Digest"}
 	if digest == nil {
-		return briefing
+		return b
 	}
 
-	briefing.Title = digest.Title
-	briefing.Date = digest.GeneratedAt
-	briefing.Meta = intel.BriefingMeta{
+	b.Title = digest.Title
+	b.Date = digest.GeneratedAt
+	b.Meta = intel.BriefingMeta{
 		SourcesSynced:   digest.Meta.SourcesSynced,
 		ItemsConsidered: digest.Meta.ItemsConsidered,
 		ItemsDeduped:    digest.Meta.ItemsDeduped,
@@ -105,20 +110,11 @@ func briefingFromDigest(digest *trss.Digest) *intel.Briefing {
 	}
 
 	for _, item := range digest.Items {
-		briefing.Items = append(briefing.Items, intel.ScoredItem{
+		b.Items = append(b.Items, intel.ScoredItem{
 			Item:      intel.FromTRSSItem(item),
 			Score:     item.Score,
 			Breakdown: intel.ScoreBreakdown{Final: item.Score},
 		})
 	}
-
-	for _, section := range digest.Sections {
-		briefing.Sections = append(briefing.Sections, intel.BriefingSection{
-			Name:       section.Name,
-			Kind:       section.Name,
-			ClusterIDs: append([]string(nil), section.ItemIDs...),
-		})
-	}
-
-	return briefing
+	return b
 }

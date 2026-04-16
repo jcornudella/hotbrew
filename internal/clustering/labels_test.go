@@ -51,6 +51,22 @@ func TestLabelForItemsFallsBackToGeneral(t *testing.T) {
 	}
 }
 
+func TestLabelForItemsDoesNotMatchSubstringsAcrossWordBoundaries(t *testing.T) {
+	// "ai" must not match inside "renaissance"; "ml" must not match
+	// inside "mainline". A real AI item would stay AI; this test
+	// makes sure we don't route Compiler articles to AI by accident.
+	items := []trss.Item{
+		{Title: "Compiler renaissance", Summary: "Why compilers will matter again on the mainline."},
+	}
+	got := LabelForItems(items)
+	if got.Slug == "ai" {
+		t.Fatalf("compiler article should not label as ai, got %q", got.Slug)
+	}
+	if got.Slug != "devtools" {
+		t.Fatalf("compiler article should label as devtools, got %q", got.Slug)
+	}
+}
+
 func TestLabelForItemsEmptyReturnsGeneral(t *testing.T) {
 	got := LabelForItems(nil)
 	if got.Slug != "general" {
