@@ -29,7 +29,11 @@ func New(version string) *Root {
 	}
 
 	r.register(&command{name: "config", run: r.cmdConfig})
-	r.register(&command{name: "theme", aliases: []string{"themes"}, run: r.cmdTheme})
+	r.register(&command{name: "theme", run: r.cmdTheme})
+	r.register(&command{name: "themes", run: r.cmdThemes})
+	r.register(&command{name: "follow", run: r.cmdFollow})
+	r.register(&command{name: "unfollow", run: r.cmdUnfollow})
+	r.register(&command{name: "mute-theme", run: r.cmdMuteTheme})
 	r.register(&command{name: "login", run: r.cmdLogin})
 	r.register(&command{name: "sync", run: r.cmdSync})
 	r.register(&command{name: "digest", run: r.cmdDigest})

@@ -4,6 +4,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jcornudella/hotbrew/internal/clustering"
 	"github.com/jcornudella/hotbrew/internal/intel"
 	"github.com/jcornudella/hotbrew/internal/ranking"
 	"github.com/jcornudella/hotbrew/internal/store"
@@ -57,7 +58,8 @@ func (e *Engine) GenerateDigest(window time.Duration, maxItems int, title string
 	repeat := ranking.ComputeRepeatPenalty(deduped)
 
 	sourceWeights := e.loadSourceWeights()
-	ranked := ranking.RankItemsWith(deduped, sourceWeights, boosts, time.Now(), resonance, repeat)
+	topicBoosts := computeThemeBoosts(deduped, e.loadThemePreferences())
+	ranked := ranking.RankItemsWith(deduped, sourceWeights, boosts, time.Now(), resonance, repeat, topicBoosts)
 	e.persistFeatures(ranked)
 
 	scored := applyScores(deduped, ranked)
@@ -111,6 +113,36 @@ func applyScores(items []trss.Item, ranked []intel.ScoredItem) []trss.Item {
 		scored[i] = item
 	}
 	return scored
+}
+
+// loadThemePreferences reads the user's follow/mute dictionary.
+// A nil/empty result is treated as neutral by downstream ranking.
+func (e *Engine) loadThemePreferences() map[string]string {
+	if e.Store == nil {
+		return nil
+	}
+	prefs, err := e.Store.ListThemePreferences()
+	if err != nil {
+		return nil
+	}
+	return prefs
+}
+
+// computeThemeBoosts labels each candidate item and turns the user's
+// preferences into a per-item multiplier. Labels are computed on
+// single-item "clusters" here — the real clustering pass runs later
+// inside briefing assembly, but for ranking we only need each item's
+// own dominant theme, not its neighborhood.
+func computeThemeBoosts(items []trss.Item, preferences map[string]string) map[string]float64 {
+	if len(items) == 0 || len(preferences) == 0 {
+		return nil
+	}
+	out := make(map[string]float64, len(items))
+	for _, item := range items {
+		slug := clustering.LabelForItems([]trss.Item{item}).Slug
+		out[item.ID] = ranking.ThemeMultiplier(slug, preferences)
+	}
+	return out
 }
 
 // loadSourceWeights retrieves weights from the sources table.
