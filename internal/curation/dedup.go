@@ -12,8 +12,8 @@ import (
 // Dedup removes duplicate items using fingerprint-based exact matching
 // and title similarity fuzzy matching. It records dedup edges in the store.
 func Dedup(items []trss.Item, st *store.Store) []trss.Item {
-	seen := map[string]int{}     // fingerprint → index of kept item
-	urlSeen := map[string]int{}  // canonical URL → index
+	seen := map[string]int{}    // fingerprint → index of kept item
+	urlSeen := map[string]int{} // canonical URL → index
 	var result []trss.Item
 
 	for _, item := range items {

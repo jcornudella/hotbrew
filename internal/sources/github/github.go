@@ -22,18 +22,18 @@ type SearchResult struct {
 
 // Repo represents a GitHub repository
 type Repo struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	FullName    string `json:"full_name"`
-	Description string `json:"description"`
-	HTMLURL     string `json:"html_url"`
-	Stars       int    `json:"stargazers_count"`
-	Forks       int    `json:"forks_count"`
-	Language    string `json:"language"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID          int64    `json:"id"`
+	Name        string   `json:"name"`
+	FullName    string   `json:"full_name"`
+	Description string   `json:"description"`
+	HTMLURL     string   `json:"html_url"`
+	Stars       int      `json:"stargazers_count"`
+	Forks       int      `json:"forks_count"`
+	Language    string   `json:"language"`
+	CreatedAt   string   `json:"created_at"`
+	UpdatedAt   string   `json:"updated_at"`
 	Topics      []string `json:"topics"`
-	Owner       Owner  `json:"owner"`
+	Owner       Owner    `json:"owner"`
 }
 
 // Owner represents a repo owner
@@ -44,9 +44,9 @@ type Owner struct {
 
 // Source fetches trending repos from GitHub
 type Source struct {
-	name    string
-	topics  []string
-	icon    string
+	name   string
+	topics []string
+	icon   string
 }
 
 // New creates a new GitHub trending source

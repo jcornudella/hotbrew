@@ -58,9 +58,9 @@ func New(name string, subreddits []string, icon string) *Source {
 	}
 }
 
-func (s *Source) Name() string        { return s.name }
-func (s *Source) Icon() string        { return s.icon }
-func (s *Source) TTL() time.Duration  { return 15 * time.Minute }
+func (s *Source) Name() string       { return s.name }
+func (s *Source) Icon() string       { return s.icon }
+func (s *Source) TTL() time.Duration { return 15 * time.Minute }
 
 func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section, error) {
 	maxItems := 8
@@ -164,14 +164,14 @@ func (s *Source) fetchSubreddit(ctx context.Context, subreddit string, limit int
 		}
 
 		items = append(items, source.Item{
-			ID:       post.ID,
-			Title:    post.Title,
-			Subtitle: subtitle,
-			URL:      itemURL,
-			Priority: priority,
+			ID:        post.ID,
+			Title:     post.Title,
+			Subtitle:  subtitle,
+			URL:       itemURL,
+			Priority:  priority,
 			Timestamp: timestamp,
-			Category: "discussion",
-			Icon:     s.icon,
+			Category:  "discussion",
+			Icon:      s.icon,
 			Actions: []source.Action{
 				{Key: "o", Label: "open", Command: itemURL},
 				{Key: "c", Label: "comments", Command: commentsURL},

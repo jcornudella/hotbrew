@@ -45,9 +45,9 @@ func NewTech() *Source {
 	return New("TLDR Tech", "https://tldr.tech/api/rss/tech", "💻")
 }
 
-func (s *Source) Name() string        { return s.name }
-func (s *Source) Icon() string        { return s.icon }
-func (s *Source) TTL() time.Duration  { return 30 * time.Minute }
+func (s *Source) Name() string       { return s.name }
+func (s *Source) Icon() string       { return s.icon }
+func (s *Source) TTL() time.Duration { return 30 * time.Minute }
 
 func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section, error) {
 	maxItems := 8

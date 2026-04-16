@@ -123,7 +123,7 @@ func TestFallbackSummarizerIsDeterministic(t *testing.T) {
 // Keeps the constructor honest — without this test, a later refactor
 // could easily break the no-provider contract without noticing.
 func TestDefaultSummarizerSatisfiesInterface(t *testing.T) {
-	var s Summarizer = DefaultSummarizer()
+	var s Summarizer = DefaultSummarizer() //nolint:staticcheck // explicit interface assertion documents intent
 	got, err := s.SummarizeItem(context.Background(), intel.IntelItem{Title: "hello"})
 	if err != nil {
 		t.Fatalf("SummarizeItem: %v", err)

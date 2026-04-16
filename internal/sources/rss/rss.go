@@ -28,8 +28,8 @@ func New(name, url, icon string) *Source {
 	}
 }
 
-func (s *Source) Name() string { return s.name }
-func (s *Source) Icon() string { return s.icon }
+func (s *Source) Name() string       { return s.name }
+func (s *Source) Icon() string       { return s.icon }
 func (s *Source) TTL() time.Duration { return 15 * time.Minute }
 
 func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section, error) {

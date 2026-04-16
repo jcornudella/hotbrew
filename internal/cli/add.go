@@ -48,7 +48,7 @@ func Add(st *store.Store, args []string) {
 	defer cancel()
 
 	result := hsync.SyncSource(ctx, st, "rss", src, source.Config{
-		Enabled: true,
+		Enabled:  true,
 		Settings: map[string]any{"max": 20},
 	})
 
