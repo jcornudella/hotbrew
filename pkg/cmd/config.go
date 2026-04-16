@@ -171,7 +171,7 @@ func runFirstTimeSetup() error {
 	fmt.Print("\nChoice [1-5, or Enter for default]: ")
 
 	var choice string
-	fmt.Scanln(&choice)
+	_, _ = fmt.Scanln(&choice)
 
 	themes := map[string]string{
 		"1": "synthwave", "2": "mocha", "3": "nord",
@@ -185,13 +185,13 @@ func runFirstTimeSetup() error {
 
 	cfg, _ := config.Load()
 	cfg.Theme = selectedTheme
-	config.Save(cfg)
+	_ = config.Save(cfg)
 
 	fmt.Printf("\n✓ Theme set to %s\n", selectedTheme)
 
 	fmt.Print("\nAdd hotbrew to your shell (shows on terminal open)? [Y/n]: ")
 	var addShell string
-	fmt.Scanln(&addShell)
+	_, _ = fmt.Scanln(&addShell)
 
 	if addShell == "" || strings.ToLower(addShell) == "y" {
 		shell := os.Getenv("SHELL")
@@ -208,9 +208,9 @@ func runFirstTimeSetup() error {
 		if rcFile != "" {
 			f, err := os.OpenFile(rcFile, os.O_APPEND|os.O_WRONLY, 0644)
 			if err == nil {
-				f.WriteString("\n# hotbrew - Your morning, piping hot\n")
-				f.WriteString("command -v hotbrew &>/dev/null && hotbrew\n")
-				f.Close()
+				_, _ = f.WriteString("\n# hotbrew - Your morning, piping hot\n")
+				_, _ = f.WriteString("command -v hotbrew &>/dev/null && hotbrew\n")
+				_ = f.Close()
 				fmt.Printf("✓ Added to %s\n", rcFile)
 			}
 		}

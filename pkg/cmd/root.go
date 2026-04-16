@@ -100,7 +100,7 @@ func (r *Root) runApp() error {
 		st = nil
 	}
 	if st != nil {
-		defer st.Close()
+		defer func() { _ = st.Close() }()
 	}
 
 	model := ui.NewModel(cfg, st)
@@ -128,6 +128,6 @@ func withStore(fn func(*store.Store) error) error {
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	return fn(st)
 }

@@ -15,7 +15,7 @@ func (s *Store) ReplaceClusters(clusters []intel.ThemeCluster) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec(`DELETE FROM cluster_items`); err != nil {
 		return err
@@ -57,7 +57,7 @@ func (s *Store) ListClusters() ([]intel.ThemeCluster, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var clusters []intel.ThemeCluster
 	for rows.Next() {
@@ -110,7 +110,7 @@ func (s *Store) listClusterMembers(clusterIDs []string) (map[string][]string, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make(map[string][]string, len(clusterIDs))
 	for rows.Next() {

@@ -78,7 +78,7 @@ func (s *Store) ListItems(f ItemFilter) ([]trss.Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var items []trss.Item
 	for rows.Next() {
@@ -100,9 +100,9 @@ func (s *Store) ListItems(f ItemFilter) ([]trss.Item, error) {
 
 		item.PublishedAt, _ = time.Parse(time.RFC3339, pubAt)
 		item.FetchedAt, _ = time.Parse(time.RFC3339, fetchAt)
-		json.Unmarshal([]byte(tagsJSON), &item.Tags)
-		json.Unmarshal([]byte(engJSON), &item.Engagement)
-		json.Unmarshal([]byte(metaJSON), &item.Meta)
+		_ = json.Unmarshal([]byte(tagsJSON), &item.Tags)
+		_ = json.Unmarshal([]byte(engJSON), &item.Engagement)
+		_ = json.Unmarshal([]byte(metaJSON), &item.Meta)
 
 		if item.Meta == nil {
 			item.Meta = map[string]any{}
@@ -146,9 +146,9 @@ func (s *Store) GetItem(idPrefix string) (*trss.Item, error) {
 
 	item.PublishedAt, _ = time.Parse(time.RFC3339, pubAt)
 	item.FetchedAt, _ = time.Parse(time.RFC3339, fetchAt)
-	json.Unmarshal([]byte(tagsJSON), &item.Tags)
-	json.Unmarshal([]byte(engJSON), &item.Engagement)
-	json.Unmarshal([]byte(metaJSON), &item.Meta)
+	_ = json.Unmarshal([]byte(tagsJSON), &item.Tags)
+	_ = json.Unmarshal([]byte(engJSON), &item.Engagement)
+	_ = json.Unmarshal([]byte(metaJSON), &item.Meta)
 
 	_ = items // suppress unused
 	return &item, nil
@@ -164,13 +164,13 @@ func (s *Store) UpdateScore(id string, score float64) error {
 func (s *Store) HasRecentItems(d time.Duration) bool {
 	cutoff := time.Now().Add(-d).UTC().Format(time.RFC3339)
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM items WHERE fetched_at >= ?", cutoff).Scan(&count)
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM items WHERE fetched_at >= ?", cutoff).Scan(&count)
 	return count > 0
 }
 
 // ItemCount returns the total number of items.
 func (s *Store) ItemCount() int {
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
 	return count
 }

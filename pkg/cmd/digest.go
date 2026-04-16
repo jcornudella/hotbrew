@@ -26,7 +26,7 @@ func (r *Root) cmdDigest(args []string) error {
 		return fmt.Errorf("open store: %w", err)
 	}
 	repo := repo.New(st)
-	defer repo.Close()
+	defer func() { _ = repo.Close() }()
 
 	service := app.NewBriefingService(st, cfg)
 

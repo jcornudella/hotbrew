@@ -48,7 +48,7 @@ func recordRating(rating int) error {
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	repo := repo.New(st)
 	return repo.InsertFeedback(rating, "")

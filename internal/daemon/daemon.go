@@ -38,13 +38,13 @@ func Start(cfg *config.Config, registry *source.Registry) error {
 	if err := writePID(os.Getpid()); err != nil {
 		return fmt.Errorf("write pid: %w", err)
 	}
-	defer os.Remove(pidFile())
+	defer func() { _ = os.Remove(pidFile()) }()
 
 	st, err := store.Open(cfg.GetDBPath())
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	interval := cfg.GetSyncInterval()
 	fmt.Printf("☕ Daemon started (PID %d, interval %s)\n", os.Getpid(), interval)
@@ -90,7 +90,7 @@ func runCycle(ctx context.Context, st *store.Store, cfg *config.Config, registry
 	}
 
 	// Save digest to store.
-	st.SaveDigest(digest)
+	_ = st.SaveDigest(digest)
 
 	// Write to stream log.
 	logSink := &sinks.StreamLog{Path: cfg.GetStreamLogPath()}
@@ -114,11 +114,11 @@ func Stop() error {
 	}
 
 	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		os.Remove(pidFile())
+		_ = os.Remove(pidFile())
 		return fmt.Errorf("signal process %d: %w", pid, err)
 	}
 
-	os.Remove(pidFile())
+	_ = os.Remove(pidFile())
 	fmt.Printf("☕ Daemon stopped (PID %d)\n", pid)
 	return nil
 }
@@ -135,13 +135,15 @@ func Status() {
 		fmt.Printf("☕ Daemon: running (PID %d)\n", pid)
 	} else {
 		fmt.Printf("☕ Daemon: stale PID file (PID %d not running)\n", pid)
-		os.Remove(pidFile())
+		_ = os.Remove(pidFile())
 	}
 }
 
 func writePID(pid int) error {
 	path := pidFile()
-	os.MkdirAll(filepath.Dir(path), 0755)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
 	return os.WriteFile(path, []byte(strconv.Itoa(pid)), 0644)
 }
 

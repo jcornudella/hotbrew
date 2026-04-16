@@ -22,7 +22,7 @@ func Stream(cfg *config.Config) {
 		fmt.Fprintf(os.Stderr, "Error opening stream log: %v\n", err)
 		os.Exit(1)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)

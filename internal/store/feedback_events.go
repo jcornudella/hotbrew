@@ -52,7 +52,7 @@ func (s *Store) ListFeedbackEvents(limit int) ([]FeedbackEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanFeedbackEventRows(rows)
 }
 
@@ -70,7 +70,7 @@ func (s *Store) ListFeedbackEventsByAction(action string, limit int) ([]Feedback
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanFeedbackEventRows(rows)
 }
 

@@ -45,7 +45,6 @@ func Item(item source.Item, t theme.Theme, width int, selected bool, isFirst boo
 	if leftWidth < 12 {
 		timestamp = ""
 		leftWidth = lineWidth
-		timeWidth = 0
 	}
 	if leftWidth < 4 {
 		leftWidth = 4

@@ -97,7 +97,7 @@ func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section,
 			storyID := hit.StoryID
 			if storyID == 0 {
 				// Parse from objectID if story_id not set
-				fmt.Sscanf(hit.ObjectID, "%d", &storyID)
+				_, _ = fmt.Sscanf(hit.ObjectID, "%d", &storyID)
 			}
 
 			hnURL := fmt.Sprintf("https://news.ycombinator.com/item?id=%s", hit.ObjectID)
@@ -162,7 +162,7 @@ func search(ctx context.Context, query string, limit int) ([]Hit, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result SearchResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

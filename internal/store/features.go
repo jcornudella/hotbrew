@@ -69,7 +69,7 @@ func (s *Store) ListItemFeatures(ids []string) (map[string]ItemFeatures, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		features, err := scanFeaturesRow(rows)

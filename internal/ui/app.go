@@ -83,7 +83,6 @@ type errorMsg struct {
 	err error
 }
 
-type tickMsg time.Time
 type animTickMsg time.Time
 
 // NewModel creates a new application model.
@@ -280,11 +279,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				id := itemStoreID(item)
 				state := m.store.GetState(id)
 				if state == "unread" {
-					m.store.MarkRead(id)
+					_ = m.store.MarkRead(id)
 					m.statusMsg = "✓ Marked read"
 					m.recordEvent(store.FeedbackActionRead, id, "")
 				} else {
-					m.store.MarkUnread(id)
+					_ = m.store.MarkUnread(id)
 					m.statusMsg = "○ Marked unread"
 					m.recordEvent(store.FeedbackActionUnread, id, "")
 				}
@@ -297,7 +296,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if item := m.selectedItem(); item != nil && item.URL != "" {
 				domain := extractItemDomain(item.URL)
 				if domain != "" {
-					m.store.AddRule("mute_domain", domain, "")
+					_ = m.store.AddRule("mute_domain", domain, "")
 					m.statusMsg = fmt.Sprintf("🔇 Muted %s", domain)
 					m.recordEvent(store.FeedbackActionMuteDomain, itemStoreID(item), domain)
 				}
@@ -518,7 +517,7 @@ func (m Model) applyTheme(name string) (tea.Model, tea.Cmd) {
 	m.theme = theme.Get(name)
 	m.previewTheme = ""
 	m.themePicker = false
-	config.Save(m.cfg)
+	_ = config.Save(m.cfg)
 	m.statusMsg = fmt.Sprintf("Theme switched to %s", name)
 	return m, animTick()
 }
@@ -533,7 +532,7 @@ func (m Model) applyProfile(name string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.cfg.Profile = name
-	config.Save(m.cfg)
+	_ = config.Save(m.cfg)
 	m.statusMsg = fmt.Sprintf("Profile switched to %s", name)
 	m.state = StateLoading
 	if m.store != nil {

@@ -22,12 +22,12 @@ func Open(dbPath string) (*Store, error) {
 	}
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		if f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0o600); err == nil {
-			f.Close()
+			_ = f.Close()
 		} else {
 			return nil, err
 		}
 	} else if err == nil {
-		os.Chmod(dbPath, 0o600)
+		_ = os.Chmod(dbPath, 0o600)
 	}
 
 	db, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
@@ -37,13 +37,13 @@ func Open(dbPath string) (*Store, error) {
 
 	// Enable WAL mode and foreign keys
 	if _, err := db.Exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 

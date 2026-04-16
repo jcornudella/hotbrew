@@ -67,7 +67,7 @@ func (e *Engine) GenerateDigest(window time.Duration, maxItems int, title string
 
 	diverse := EnforceDiversity(scored, e.Limits, maxItems)
 	for _, item := range diverse {
-		e.Store.UpdateScore(item.ID, item.Score)
+		_ = e.Store.UpdateScore(item.ID, item.Score)
 	}
 
 	digest := trss.NewDigest(title, window.String(), maxItems)

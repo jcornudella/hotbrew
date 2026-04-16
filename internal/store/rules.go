@@ -26,7 +26,7 @@ func (s *Store) ListRules() ([]Rule, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var rules []Rule
 	for rows.Next() {
@@ -49,7 +49,7 @@ func (s *Store) DeleteRule(id int) error {
 // HasMuteRule checks if a domain or source is muted.
 func (s *Store) HasMuteRule(domain string) bool {
 	var count int
-	s.db.QueryRow(`
+	_ = s.db.QueryRow(`
 		SELECT COUNT(*) FROM rules
 		WHERE enabled = 1 AND kind IN ('mute_domain', 'mute_source') AND pattern = ?`,
 		domain,

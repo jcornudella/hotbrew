@@ -122,7 +122,7 @@ func (s *Server) load() {
 	if err != nil {
 		return
 	}
-	json.Unmarshal(data, &s.subscribers)
+	_ = json.Unmarshal(data, &s.subscribers)
 }
 
 // save writes subscribers to disk
@@ -140,7 +140,7 @@ func (s *Server) save() {
 // generateToken creates a unique token
 func generateToken() string {
 	bytes := make([]byte, 16)
-	rand.Read(bytes)
+	_, _ = rand.Read(bytes)
 	return hex.EncodeToString(bytes)
 }
 
@@ -195,7 +195,7 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
@@ -234,7 +234,7 @@ func (s *Server) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"token":   token,
 		"message": "Welcome to hotbrew! Run: hotbrew login " + token,
@@ -271,7 +271,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sub.Config)
+	_ = json.NewEncoder(w).Encode(sub.Config)
 }
 
 // GET /api/newsletter/:token
@@ -294,7 +294,7 @@ func (s *Server) handleNewsletter(w http.ResponseWriter, r *http.Request) {
 	// Return a response that tells the CLI to fetch fresh content
 	// In a production setup, you'd cache this and update periodically
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"fetch_live": true,
 		"message":    "Fetch content directly from sources",
 	})
@@ -303,7 +303,7 @@ func (s *Server) handleNewsletter(w http.ResponseWriter, r *http.Request) {
 // GET /api/health
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "ok",
 		"time":   time.Now(),
 	})
