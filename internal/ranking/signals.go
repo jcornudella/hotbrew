@@ -2,16 +2,29 @@ package ranking
 
 import (
 	"math"
+	"net/url"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jcornudella/hotbrew/internal/intel"
 	"github.com/jcornudella/hotbrew/pkg/trss"
 )
 
-// ComputeSignals derives the phase-1 ranking features for an item:
-// freshness, source authority, and engagement. Later signals (resonance,
-// novelty, topic match, etc.) will be filled in by higher layers with
-// access to corpus-wide context.
+// Phase-1 tuning constants. Kept small and explicit so ranking stays
+// deterministic and inspectable. Tune by reading fixture test output.
+const (
+	resonanceStep     = 0.3
+	resonanceCap      = 2.0
+	sourceRepeatCap   = 5
+	domainRepeatCap   = 3
+	repeatPenaltyMin  = 0.3
+	titleMatchMinimum = 10 // normalized title must carry enough signal
+)
+
+// ComputeSignals derives per-item ranking features. Corpus-wide signals
+// (resonance, repeat penalty) are computed separately over the candidate
+// set and folded in by the ranker.
 func ComputeSignals(item trss.Item, sourceWeights map[string]float64, now time.Time) intel.ItemSignals {
 	if now.IsZero() {
 		now = time.Now()
@@ -21,6 +34,76 @@ func ComputeSignals(item trss.Item, sourceWeights map[string]float64, now time.T
 		SourceAuthority: SourceWeight(item.Source.Name, sourceWeights),
 		Engagement:      EngagementScore(item.Engagement),
 	}
+}
+
+// ComputeResonance boosts items that surface from multiple distinct
+// sources via the same canonical URL or normalized title — strong signal
+// that the story matters beyond one community.
+func ComputeResonance(items []trss.Item) map[string]float64 {
+	urlSources := map[string]map[string]struct{}{}
+	titleSources := map[string]map[string]struct{}{}
+
+	for _, item := range items {
+		if key := canonicalKey(item); key != "" {
+			addSource(urlSources, key, item.Source.Name)
+		}
+		if title := normalizeTitle(item.Title); len(title) >= titleMatchMinimum {
+			addSource(titleSources, title, item.Source.Name)
+		}
+	}
+
+	scores := make(map[string]float64, len(items))
+	for _, item := range items {
+		matches := 1
+		if key := canonicalKey(item); key != "" {
+			if n := len(urlSources[key]); n > matches {
+				matches = n
+			}
+		}
+		if title := normalizeTitle(item.Title); len(title) >= titleMatchMinimum {
+			if n := len(titleSources[title]); n > matches {
+				matches = n
+			}
+		}
+		score := 1.0 + resonanceStep*float64(matches-1)
+		if score > resonanceCap {
+			score = resonanceCap
+		}
+		scores[item.ID] = score
+	}
+	return scores
+}
+
+// ComputeRepeatPenalty demotes items whose source or domain is
+// over-represented in the current candidate set, so one loud source
+// can't hog the briefing.
+func ComputeRepeatPenalty(items []trss.Item) map[string]float64 {
+	sourceCount := map[string]int{}
+	domainCount := map[string]int{}
+	for _, item := range items {
+		sourceCount[item.Source.Name]++
+		if d := extractDomain(item); d != "" {
+			domainCount[d]++
+		}
+	}
+
+	scores := make(map[string]float64, len(items))
+	for _, item := range items {
+		penalty := 1.0
+		if n := sourceCount[item.Source.Name]; n > sourceRepeatCap {
+			penalty *= float64(sourceRepeatCap) / float64(n)
+		}
+		if d := extractDomain(item); d != "" {
+			if n := domainCount[d]; n > domainRepeatCap {
+				penalty *= float64(domainRepeatCap) / float64(n)
+			}
+		}
+		if penalty < repeatPenaltyMin {
+			penalty = repeatPenaltyMin
+		}
+		scores[item.ID] = penalty
+	}
+	return scores
 }
 
 // RecencyScore decays exponentially with age and floors at 0.1.
@@ -88,6 +171,51 @@ func UserBoost(item trss.Item, boosts map[string]float64) float64 {
 		return b
 	}
 	return 1.0
+}
+
+func addSource(index map[string]map[string]struct{}, key, source string) {
+	bucket, ok := index[key]
+	if !ok {
+		bucket = map[string]struct{}{}
+		index[key] = bucket
+	}
+	bucket[source] = struct{}{}
+}
+
+func canonicalKey(item trss.Item) string {
+	key := strings.TrimSpace(item.URLCanonical)
+	if key == "" {
+		key = strings.TrimSpace(item.URL)
+	}
+	return strings.ToLower(key)
+}
+
+func normalizeTitle(title string) string {
+	var b strings.Builder
+	lastSpace := true
+	for _, r := range title {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(unicode.ToLower(r))
+			lastSpace = false
+		case !lastSpace:
+			b.WriteByte(' ')
+			lastSpace = true
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func extractDomain(item trss.Item) string {
+	key := canonicalKey(item)
+	if key == "" {
+		return ""
+	}
+	parsed, err := url.Parse(key)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimPrefix(parsed.Hostname(), "www.")
 }
 
 func extractFloat(m map[string]any, key string) float64 {

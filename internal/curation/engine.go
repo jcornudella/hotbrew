@@ -82,7 +82,9 @@ func (e *Engine) persistFeatures(ranked []intel.ScoredItem) {
 			Freshness:       r.Breakdown.Freshness,
 			SourceAuthority: r.Breakdown.Authority,
 			Engagement:      r.Breakdown.Engagement,
+			Resonance:       r.Breakdown.Resonance,
 			TopicMatch:      r.Breakdown.TopicMatch,
+			RepeatPenalty:   r.Breakdown.RepeatPenalty,
 		}
 		_ = e.Store.UpsertItemFeatures(r.Item.ID, signals)
 	}
