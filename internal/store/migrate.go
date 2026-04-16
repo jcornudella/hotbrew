@@ -2,7 +2,7 @@ package store
 
 import "fmt"
 
-const currentVersion = 4
+const currentVersion = 5
 
 var migrations = []string{
 	// Version 1: initial schema
@@ -128,6 +128,23 @@ var migrations = []string{
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_cluster_items_item ON cluster_items(item_id);
+	`,
+	// Version 5: event-sourced feedback log — one row per user
+	// interaction (open, save, read, mute, explain_viewed). Ranking
+	// and preference-learning later read this log to bias future
+	// briefings without touching the per-item state rows.
+	`
+	CREATE TABLE IF NOT EXISTS feedback_events (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		action     TEXT NOT NULL,
+		item_id    TEXT,
+		target     TEXT,
+		created_at TEXT NOT NULL DEFAULT (datetime('now'))
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_feedback_events_action ON feedback_events(action);
+	CREATE INDEX IF NOT EXISTS idx_feedback_events_item ON feedback_events(item_id);
+	CREATE INDEX IF NOT EXISTS idx_feedback_events_created_at ON feedback_events(created_at);
 	`,
 }
 
