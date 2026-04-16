@@ -194,6 +194,66 @@ func TestBriefingServiceBuildPersistsItemFeatures(t *testing.T) {
 	}
 }
 
+func TestBriefingServiceBuildPopulatesAndPersistsClusters(t *testing.T) {
+	st := openTestStore(t)
+	cfg := config.Default()
+	cfg.DigestWindow = "24h"
+	cfg.DigestMax = 10
+
+	sourceID, err := st.GetOrCreateSource("Hacker News", "hackernews", "", "🔶")
+	if err != nil {
+		t.Fatalf("GetOrCreateSource: %v", err)
+	}
+	tldrID, err := st.GetOrCreateSource("TLDR", "tldr", "", "📰")
+	if err != nil {
+		t.Fatalf("GetOrCreateSource TLDR: %v", err)
+	}
+
+	now := time.Now().UTC()
+	// Items survive dedup (different titles + URLs) but share a GitHub
+	// repo signature, so clustering should fold them together via repo.
+	items := []struct {
+		sourceID int
+		item     trss.Item
+	}{
+		{sourceID, trss.Item{ID: "gh-repo", Fingerprint: "fp-repo", Title: "karpathy/autoresearch on GitHub", URL: "https://github.com/karpathy/autoresearch", URLCanonical: "https://github.com/karpathy/autoresearch", Source: trss.ItemSource{Name: "GitHub Trending", Via: "github-trending"}, PublishedAt: now.Add(-1 * time.Hour), FetchedAt: now}},
+		{tldrID, trss.Item{ID: "hn-discuss", Fingerprint: "fp-discuss", Title: "Discussion on Karpathy's new literature review tool", URL: "https://github.com/karpathy/autoresearch/issues/12", URLCanonical: "https://github.com/karpathy/autoresearch/issues/12", Source: trss.ItemSource{Name: "TLDR", Via: "tldr"}, PublishedAt: now.Add(-2 * time.Hour), FetchedAt: now}},
+		{sourceID, trss.Item{ID: "hn-solo", Fingerprint: "fp-solo", Title: "An essay about something else", URL: "https://other.example/essay", URLCanonical: "https://other.example/essay", Source: trss.ItemSource{Name: "Hacker News", Via: "hackernews"}, PublishedAt: now.Add(-3 * time.Hour), FetchedAt: now}},
+	}
+	for _, entry := range items {
+		if err := st.InsertItem(entry.item, entry.sourceID); err != nil {
+			t.Fatalf("InsertItem(%s): %v", entry.item.ID, err)
+		}
+	}
+
+	svc := NewBriefingService(st, cfg)
+	briefing, err := svc.Build(context.Background(), BuildOptions{})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	if len(briefing.Clusters) == 0 {
+		t.Fatal("briefing should carry clusters")
+	}
+	sharedFound := false
+	for _, c := range briefing.Clusters {
+		if len(c.ItemIDs) == 2 {
+			sharedFound = true
+		}
+	}
+	if !sharedFound {
+		t.Fatalf("expected a 2-member cluster for shared URL, got %+v", briefing.Clusters)
+	}
+
+	persisted, err := st.ListClusters()
+	if err != nil {
+		t.Fatalf("ListClusters: %v", err)
+	}
+	if len(persisted) != len(briefing.Clusters) {
+		t.Fatalf("persisted cluster count mismatch: %d vs %d", len(persisted), len(briefing.Clusters))
+	}
+}
+
 func openTestStore(t *testing.T) *store.Store {
 	t.Helper()
 

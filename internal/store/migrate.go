@@ -2,7 +2,7 @@ package store
 
 import "fmt"
 
-const currentVersion = 3
+const currentVersion = 4
 
 var migrations = []string{
 	// Version 1: initial schema
@@ -105,6 +105,29 @@ var migrations = []string{
 		content_fit    REAL NOT NULL DEFAULT 0,
 		computed_at    TEXT NOT NULL DEFAULT (datetime('now'))
 	);
+	`,
+	// Version 4: deterministic theme clusters + cluster membership
+	`
+	CREATE TABLE IF NOT EXISTS clusters (
+		id                     TEXT PRIMARY KEY,
+		label                  TEXT NOT NULL,
+		slug                   TEXT NOT NULL,
+		representative_item_id TEXT,
+		score                  REAL NOT NULL DEFAULT 0,
+		why_it_matters         TEXT,
+		generated_at           TEXT NOT NULL DEFAULT (datetime('now'))
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_clusters_slug ON clusters(slug);
+	CREATE INDEX IF NOT EXISTS idx_clusters_generated_at ON clusters(generated_at);
+
+	CREATE TABLE IF NOT EXISTS cluster_items (
+		cluster_id TEXT NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+		item_id    TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+		PRIMARY KEY (cluster_id, item_id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_cluster_items_item ON cluster_items(item_id);
 	`,
 }
 

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 
+	"github.com/jcornudella/hotbrew/internal/clustering"
 	"github.com/jcornudella/hotbrew/internal/config"
 	"github.com/jcornudella/hotbrew/internal/curation"
 	"github.com/jcornudella/hotbrew/internal/intel"
@@ -38,7 +39,16 @@ func (s *BriefingService) Build(ctx context.Context, opts BuildOptions) (*intel.
 	if err != nil {
 		return nil, err
 	}
-	return briefingFromDigest(digest), nil
+
+	briefing := briefingFromDigest(digest)
+	if digest != nil && len(digest.Items) > 0 {
+		clusters := clustering.Cluster(digest.Items)
+		briefing.Clusters = clusters
+		if s.store != nil {
+			_ = s.store.ReplaceClusters(clusters)
+		}
+	}
+	return briefing, nil
 }
 
 // BuildDigest generates the current curated digest via the canonical service.
