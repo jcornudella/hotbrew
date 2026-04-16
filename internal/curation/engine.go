@@ -43,11 +43,21 @@ func (e *Engine) GenerateDigest(window time.Duration, maxItems int, title string
 	filtered, boosts := ApplyRules(items, rules)
 	rulesApplied := CountAppliedRules(totalConsidered, len(filtered), boosts)
 
+	// Resonance measures cross-source agreement, so it must see the
+	// pre-dedup corpus — after dedup, only one representative per URL
+	// or near-identical title survives, which would hide the signal.
+	resonance := ranking.ComputeResonance(filtered)
+
 	deduped := Dedup(filtered, e.Store)
 	itemsDeduped := len(filtered) - len(deduped)
 
+	// Repeat penalty is about balancing the actual briefing output, so
+	// it runs on the survivors — inflating counts with duplicates would
+	// over-penalize and hide otherwise strong stories.
+	repeat := ranking.ComputeRepeatPenalty(deduped)
+
 	sourceWeights := e.loadSourceWeights()
-	ranked := ranking.RankItems(deduped, sourceWeights, boosts, time.Now())
+	ranked := ranking.RankItemsWith(deduped, sourceWeights, boosts, time.Now(), resonance, repeat)
 	e.persistFeatures(ranked)
 
 	scored := applyScores(deduped, ranked)

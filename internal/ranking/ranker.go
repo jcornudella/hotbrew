@@ -7,23 +7,34 @@ import (
 	"github.com/jcornudella/hotbrew/pkg/trss"
 )
 
-// RankItems computes scores and breakdowns for TRSS items. Per-item
-// signals (freshness, authority, engagement) are combined with
-// corpus-wide signals (resonance, repeat penalty) and user boosts to
-// produce a final multiplicative score.
+// RankItems scores items using resonance/repeat computed from the same
+// item set. Convenient for tests and simple callers. Use RankItemsWith
+// when the corpus for resonance differs from the scoring set (e.g.
+// pre-dedup resonance, post-dedup scoring).
 func RankItems(items []trss.Item, sourceWeights map[string]float64, boosts map[string]float64, now time.Time) []intel.ScoredItem {
+	return RankItemsWith(items, sourceWeights, boosts, now, ComputeResonance(items), ComputeRepeatPenalty(items))
+}
+
+// RankItemsWith scores items against externally-provided corpus
+// signals. Missing keys default to a neutral 1.0 so items outside the
+// resonance/repeat corpus are neither rewarded nor penalized.
+func RankItemsWith(
+	items []trss.Item,
+	sourceWeights map[string]float64,
+	boosts map[string]float64,
+	now time.Time,
+	resonance map[string]float64,
+	repeat map[string]float64,
+) []intel.ScoredItem {
 	if now.IsZero() {
 		now = time.Now()
 	}
 
-	resonance := ComputeResonance(items)
-	repeat := ComputeRepeatPenalty(items)
-
 	ranked := make([]intel.ScoredItem, 0, len(items))
 	for _, item := range items {
 		signals := ComputeSignals(item, sourceWeights, now)
-		signals.Resonance = resonance[item.ID]
-		signals.RepeatPenalty = repeat[item.ID]
+		signals.Resonance = lookupMultiplier(resonance, item.ID)
+		signals.RepeatPenalty = lookupMultiplier(repeat, item.ID)
 		signals.TopicMatch = UserBoost(item, boosts)
 
 		final := signals.Freshness *
@@ -48,4 +59,11 @@ func RankItems(items []trss.Item, sourceWeights map[string]float64, boosts map[s
 		})
 	}
 	return ranked
+}
+
+func lookupMultiplier(m map[string]float64, id string) float64 {
+	if v, ok := m[id]; ok {
+		return v
+	}
+	return 1.0
 }

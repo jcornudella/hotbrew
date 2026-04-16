@@ -153,6 +153,46 @@ func TestRankItemsBoostsResonantStoryAboveSolo(t *testing.T) {
 	}
 }
 
+// Regression: resonance must be computed on the pre-dedup corpus.
+// If the pipeline passes the deduped slice to ComputeResonance, the
+// cross-source signal disappears — only one representative URL survives.
+// RankItemsWith lets the caller hand in the pre-dedup map so the
+// survivor keeps its boost.
+func TestRankItemsWithAppliesPreDedupResonanceToSurvivor(t *testing.T) {
+	now := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	published := now.Add(-2 * time.Hour)
+
+	// Three sources surfaced the same canonical URL — dedup collapses
+	// them to one. The cross-source agreement still mattered.
+	preDedup := []trss.Item{
+		{ID: "hn", Title: "Big launch", URLCanonical: "https://buzz.example/launch", PublishedAt: published, Source: trss.ItemSource{Name: "HN"}},
+		{ID: "tldr", Title: "Big launch", URLCanonical: "https://buzz.example/launch", PublishedAt: published, Source: trss.ItemSource{Name: "TLDR"}},
+		{ID: "lobs", Title: "Big launch", URLCanonical: "https://buzz.example/launch", PublishedAt: published, Source: trss.ItemSource{Name: "Lobsters"}},
+	}
+	survivors := preDedup[:1] // pretend dedup kept only "hn"
+
+	resonance := ComputeResonance(preDedup)
+	if resonance["hn"] <= 1.0 {
+		t.Fatalf("pre-dedup resonance should boost hn, got %f", resonance["hn"])
+	}
+
+	// Post-dedup resonance would be neutral — prove it, then prove
+	// RankItemsWith preserves the pre-dedup boost anyway.
+	postDedup := ComputeResonance(survivors)
+	if postDedup["hn"] != 1.0 {
+		t.Fatalf("post-dedup resonance should collapse to neutral, got %f", postDedup["hn"])
+	}
+
+	ranked := RankItemsWith(survivors, nil, nil, now, resonance, nil)
+	if len(ranked) != 1 {
+		t.Fatalf("expected 1 ranked item, got %d", len(ranked))
+	}
+	if ranked[0].Breakdown.Resonance != resonance["hn"] {
+		t.Fatalf("survivor should carry pre-dedup resonance %f, got %f",
+			resonance["hn"], ranked[0].Breakdown.Resonance)
+	}
+}
+
 func timeTag(i int) string {
 	// deterministic short tag for test IDs
 	return time.Date(2026, 1, 1, 0, 0, i, 0, time.UTC).Format("150405")
