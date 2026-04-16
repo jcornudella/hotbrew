@@ -13,7 +13,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jcornudella/hotbrew/internal/app"
+	"github.com/jcornudella/hotbrew/internal/briefing"
 	"github.com/jcornudella/hotbrew/internal/config"
+	"github.com/jcornudella/hotbrew/internal/intel"
 	"github.com/jcornudella/hotbrew/internal/sinks"
 	"github.com/jcornudella/hotbrew/internal/store"
 	"github.com/jcornudella/hotbrew/internal/ui/components"
@@ -37,6 +39,7 @@ type Model struct {
 	theme    theme.Theme
 	state    State
 	sections []*source.Section
+	briefing *intel.Briefing
 	err      error
 	store    *store.Store
 
@@ -44,6 +47,11 @@ type Model struct {
 	sectionIdx int
 	itemIdx    int
 	expanded   bool
+
+	// Overlay for explain / why. Both reuse the same buffer since
+	// only one overlay is visible at a time.
+	overlayTitle string
+	overlayText  string
 
 	// UI
 	spinner             spinner.Model
@@ -68,6 +76,7 @@ type Model struct {
 // Messages
 type sectionsLoadedMsg struct {
 	sections []*source.Section
+	briefing *intel.Briefing
 }
 
 type errorMsg struct {
@@ -128,20 +137,24 @@ func (m Model) Init() tea.Cmd {
 	)
 }
 
-// loadFromStore generates a digest from the store and converts to sections.
+// loadFromStore builds a theme-assembled briefing and flattens it
+// into TUI sections. The full briefing is kept on the message so the
+// UI can hand it to explain/why overlays without re-running the
+// pipeline.
 func loadFromStore(st *store.Store, cfg *config.Config, opts app.BuildOptions) tea.Cmd {
 	return func() tea.Msg {
 		service := app.NewBriefingService(st, cfg)
-		digest, err := service.BuildDigest(context.Background(), opts)
+		b, err := service.Build(context.Background(), opts)
 		if err != nil {
 			return errorMsg{err: err}
 		}
-		if digest == nil || len(digest.Items) == 0 {
-			return sectionsLoadedMsg{sections: nil}
+		if b == nil || len(b.Items) == 0 {
+			return sectionsLoadedMsg{sections: nil, briefing: b}
 		}
-
-		sections := sinks.DigestToSections(digest)
-		return sectionsLoadedMsg{sections: sections}
+		return sectionsLoadedMsg{
+			sections: sinks.BriefingToSections(b),
+			briefing: b,
+		}
 	}
 }
 
@@ -185,6 +198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case sectionsLoadedMsg:
 		m.sections = msg.sections
+		m.briefing = msg.briefing
 		m.state = StateReady
 		return m, nil
 
@@ -203,6 +217,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKey processes keyboard input
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// An explain/why overlay takes precedence — esc (or another
+	// explain key) dismisses it without affecting navigation.
+	if m.overlayText != "" {
+		if key := msg.String(); key == "esc" || key == "q" {
+			m.overlayText = ""
+			m.overlayTitle = ""
+			return m, nil
+		}
+	}
+
 	switch msg.String() {
 	case "q", "ctrl+c", "esc":
 		return m, tea.Quit
@@ -213,8 +237,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "k", "up":
 		m = m.moveUp()
 
-	case "enter", "e":
+	case "enter":
 		m.expanded = !m.expanded
+
+	case "e":
+		m = m.openExplainOverlay()
+
+	case "?":
+		m = m.openWhyOverlay()
 
 	case "o":
 		// Open URL in browser
@@ -529,6 +559,52 @@ func (m Model) saveProfileEditor() (tea.Model, tea.Cmd) {
 	return m.applyProfile(m.profileEditorName)
 }
 
+// openExplainOverlay builds the user-facing explanation for the
+// currently selected cluster lead. If the briefing isn't available
+// (first load, sync failure) we fall back to a status blurb rather
+// than silently swallowing the key.
+func (m Model) openExplainOverlay() Model {
+	exp, ok := m.explanationForSelection()
+	if !ok {
+		m.statusMsg = "Explain unavailable — no briefing loaded"
+		return m
+	}
+	m.overlayTitle = "Why it matters"
+	m.overlayText = exp.WhyItMatters
+	return m
+}
+
+func (m Model) openWhyOverlay() Model {
+	exp, ok := m.explanationForSelection()
+	if !ok {
+		m.statusMsg = "Why unavailable — no briefing loaded"
+		return m
+	}
+	var lines []string
+	lines = append(lines, exp.WhyYouSee)
+	for _, f := range exp.Factors {
+		lines = append(lines, fmt.Sprintf("• %-14s x%.2f — %s", f.Name, f.Multiplier, f.Description))
+	}
+	m.overlayTitle = "Why you're seeing this"
+	m.overlayText = strings.Join(lines, "\n")
+	return m
+}
+
+func (m Model) explanationForSelection() (briefing.Explanation, bool) {
+	if m.briefing == nil {
+		return briefing.Explanation{}, false
+	}
+	item := m.selectedItem()
+	if item == nil {
+		return briefing.Explanation{}, false
+	}
+	id := item.ID
+	if trssID, ok := item.Metadata["trss_id"].(string); ok && trssID != "" {
+		id = trssID
+	}
+	return briefing.Explain(m.briefing, id)
+}
+
 func (m Model) selectedItem() *source.Item {
 	if len(m.sections) == 0 || m.sectionIdx >= len(m.sections) {
 		return nil
@@ -565,6 +641,8 @@ func (m Model) View() string {
 			overlay = m.renderProfilePicker()
 		case m.themePicker:
 			overlay = m.renderThemePicker()
+		case m.overlayText != "":
+			overlay = m.renderExplainOverlay()
 		}
 		if overlay != "" {
 			content = m.applyOverlay(content, overlay)
@@ -800,6 +878,34 @@ func (m Model) renderProfileEditor() string {
 	width := m.width / 2
 	if width < 40 {
 		width = m.width - 4
+	}
+	box := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Accent()).
+		Padding(1, 3).
+		Width(width)
+
+	return box.Render(lipgloss.JoinVertical(lipgloss.Left, header, instructions, "", body))
+}
+
+// renderExplainOverlay draws a bordered box with the current
+// overlay title and body. Both explain ("why it matters") and why
+// ("why you're seeing this") share this renderer — they differ only
+// in what text is stashed in overlayText.
+func (m Model) renderExplainOverlay() string {
+	if m.overlayText == "" {
+		return ""
+	}
+	header := m.theme.AccentStyle().Bold(true).Render(m.overlayTitle)
+	instructions := m.theme.MutedStyle().Render("esc close")
+	body := m.theme.ItemStyle().Render(m.overlayText)
+
+	width := m.width * 2 / 3
+	if width < 40 {
+		width = m.width - 4
+	}
+	if width < 24 {
+		width = m.width
 	}
 	box := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).

@@ -158,6 +158,10 @@ func ItemExpanded(item source.Item, t theme.Theme, width int, selected bool, isF
 		cardSections = append(cardSections, t.AccentStyle().Render(url))
 	}
 
+	if supporting := supportingLines(item, t, innerWidth); supporting != "" {
+		cardSections = append(cardSections, supporting)
+	}
+
 	if len(cardSections) == 0 {
 		return strings.Join(lines, "\n")
 	}
@@ -409,6 +413,32 @@ func itemPadding(selected bool, accent lipgloss.Color) (string, string) {
 	marker := "  " + lipgloss.NewStyle().Foreground(accent).Render("▍") + " "
 	marker = lipgloss.NewStyle().Width(itemGutterWidth).Render(marker)
 	return marker, indent
+}
+
+// supportingLines renders a cluster's "also covered by" list from
+// item metadata. Returns empty when the item isn't a cluster lead
+// or has no supporting members; in that case the expanded card
+// looks identical to the source-section rendering.
+func supportingLines(item source.Item, t theme.Theme, width int) string {
+	raw, ok := item.Metadata["supporting"].([]map[string]any)
+	if !ok || len(raw) == 0 {
+		return ""
+	}
+	var lines []string
+	lines = append(lines, t.MutedStyle().Render("Also covered by:"))
+	for _, entry := range raw {
+		title, _ := entry["title"].(string)
+		src, _ := entry["source"].(string)
+		if title == "" && src == "" {
+			continue
+		}
+		label := sanitize.Text(title)
+		if src != "" {
+			label = fmt.Sprintf("%s  ·  %s", label, sanitize.Text(src))
+		}
+		lines = append(lines, t.MutedStyle().Render("  ↳ "+truncate(label, width-4)))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func renderSourceTag(tag string, accent lipgloss.Color) string {
