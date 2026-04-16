@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	baseURL     = "https://hacker-news.firebaseio.com/v0"
-	topStories  = baseURL + "/topstories.json"
-	itemURL     = baseURL + "/item/%d.json"
+	baseURL    = "https://hacker-news.firebaseio.com/v0"
+	topStories = baseURL + "/topstories.json"
+	itemURL    = baseURL + "/item/%d.json"
 )
 
 // Story represents a HN story
@@ -37,9 +37,9 @@ func New() *Source {
 	return &Source{}
 }
 
-func (s *Source) Name() string          { return "Hacker News" }
-func (s *Source) Icon() string          { return "🔶" }
-func (s *Source) TTL() time.Duration    { return 10 * time.Minute }
+func (s *Source) Name() string       { return "Hacker News" }
+func (s *Source) Icon() string       { return "🔶" }
+func (s *Source) TTL() time.Duration { return 10 * time.Minute }
 
 func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section, error) {
 	// Get max items from config

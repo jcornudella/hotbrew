@@ -8,7 +8,10 @@ import (
 )
 
 type fixtureRoundTripper struct {
-	t        interface{ Helper(); Fatalf(string, ...any) }
+	t interface {
+		Helper()
+		Fatalf(string, ...any)
+	}
 	fixtures map[string]string
 }
 

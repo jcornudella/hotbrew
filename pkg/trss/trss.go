@@ -8,20 +8,20 @@ import "time"
 
 // Item represents a normalized content item in TRSS format.
 type Item struct {
-	ID          string         `json:"id"`
-	Title       string         `json:"title"`
-	URL         string         `json:"url,omitempty"`
-	URLCanonical string        `json:"url_canonical,omitempty"`
-	Source      ItemSource     `json:"source"`
-	PublishedAt time.Time      `json:"published_at"`
-	FetchedAt   time.Time      `json:"fetched_at"`
-	Summary     string         `json:"summary,omitempty"`
-	Body        string         `json:"body,omitempty"`
-	Tags        []string       `json:"tags,omitempty"`
-	Score       float64        `json:"score"`
-	Engagement  map[string]any `json:"engagement,omitempty"`
-	Fingerprint string         `json:"fingerprint"`
-	Meta        map[string]any `json:"meta,omitempty"`
+	ID           string         `json:"id"`
+	Title        string         `json:"title"`
+	URL          string         `json:"url,omitempty"`
+	URLCanonical string         `json:"url_canonical,omitempty"`
+	Source       ItemSource     `json:"source"`
+	PublishedAt  time.Time      `json:"published_at"`
+	FetchedAt    time.Time      `json:"fetched_at"`
+	Summary      string         `json:"summary,omitempty"`
+	Body         string         `json:"body,omitempty"`
+	Tags         []string       `json:"tags,omitempty"`
+	Score        float64        `json:"score"`
+	Engagement   map[string]any `json:"engagement,omitempty"`
+	Fingerprint  string         `json:"fingerprint"`
+	Meta         map[string]any `json:"meta,omitempty"`
 }
 
 // ItemSource identifies where an item came from.

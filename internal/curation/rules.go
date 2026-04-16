@@ -56,6 +56,6 @@ func ApplyRules(items []trss.Item, rules []store.Rule) ([]trss.Item, map[string]
 // CountAppliedRules returns how many rules actually affected the result.
 func CountAppliedRules(original, filtered int, boosts map[string]float64) int {
 	count := original - filtered // muted items
-	count += len(boosts)        // boost rules
+	count += len(boosts)         // boost rules
 	return count
 }

@@ -37,9 +37,9 @@ type Config struct {
 // possible (via APIKey) but discouraged; the env form keeps secrets
 // out of dotfiles.
 type AIConfig struct {
-	Provider  string `yaml:"provider,omitempty"`  // "", "anthropic"
-	Model     string `yaml:"model,omitempty"`     // provider-specific
-	APIKey    string `yaml:"api_key,omitempty"`   // literal key (discouraged)
+	Provider  string `yaml:"provider,omitempty"`    // "", "anthropic"
+	Model     string `yaml:"model,omitempty"`       // provider-specific
+	APIKey    string `yaml:"api_key,omitempty"`     // literal key (discouraged)
 	APIKeyEnv string `yaml:"api_key_env,omitempty"` // env var holding the key
 	MaxTokens int    `yaml:"max_tokens,omitempty"`
 }

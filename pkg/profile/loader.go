@@ -92,7 +92,7 @@ func List() []Info {
 			continue
 		}
 		name := entry.Name()
-		if !(strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")) {
+		if !strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml") {
 			continue
 		}
 		trimmed := strings.TrimSuffix(strings.TrimSuffix(name, ".yaml"), ".yml")

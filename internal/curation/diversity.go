@@ -9,9 +9,9 @@ import (
 
 // DiversityLimits controls the maximum concentration from any single dimension.
 type DiversityLimits struct {
-	MaxPerDomain       int     // Max items from one domain (default 3)
-	MaxSourcePercent   float64 // Max % from one source (default 0.4)
-	MaxPerTagCluster   int     // Max items sharing a dominant tag (default 3)
+	MaxPerDomain     int     // Max items from one domain (default 3)
+	MaxSourcePercent float64 // Max % from one source (default 0.4)
+	MaxPerTagCluster int     // Max items sharing a dominant tag (default 3)
 }
 
 // DefaultLimits returns sensible diversity defaults.

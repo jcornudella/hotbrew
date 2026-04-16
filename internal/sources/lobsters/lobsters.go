@@ -48,9 +48,9 @@ func New(name string, tags []string, icon string) *Source {
 	}
 }
 
-func (s *Source) Name() string        { return s.name }
-func (s *Source) Icon() string        { return s.icon }
-func (s *Source) TTL() time.Duration  { return 15 * time.Minute }
+func (s *Source) Name() string       { return s.name }
+func (s *Source) Icon() string       { return s.icon }
+func (s *Source) TTL() time.Duration { return 15 * time.Minute }
 
 func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section, error) {
 	maxItems := 10
@@ -116,14 +116,14 @@ func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section,
 		}
 
 		items = append(items, source.Item{
-			ID:       st.ShortID,
-			Title:    st.Title,
-			Subtitle: st.Description,
-			URL:      st.URL,
-			Priority: priority,
+			ID:        st.ShortID,
+			Title:     st.Title,
+			Subtitle:  st.Description,
+			URL:       st.URL,
+			Priority:  priority,
 			Timestamp: timestamp,
-			Category: "tech",
-			Icon:     s.icon,
+			Category:  "tech",
+			Icon:      s.icon,
 			Actions: []source.Action{
 				{Key: "o", Label: "open", Command: st.URL},
 				{Key: "c", Label: "comments", Command: st.CommentsURL},

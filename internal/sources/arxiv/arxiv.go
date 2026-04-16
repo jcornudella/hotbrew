@@ -132,9 +132,9 @@ func New(name string, categories []string, icon string) *Source {
 	return &Source{name: name, icon: icon, categories: categories}
 }
 
-func (s *Source) Name() string        { return s.name }
-func (s *Source) Icon() string        { return s.icon }
-func (s *Source) TTL() time.Duration  { return 1 * time.Hour }
+func (s *Source) Name() string       { return s.name }
+func (s *Source) Icon() string       { return s.icon }
+func (s *Source) TTL() time.Duration { return 1 * time.Hour }
 
 func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section, error) {
 	maxItems := 5
