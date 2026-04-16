@@ -47,9 +47,42 @@ func (s *BriefingService) Build(ctx context.Context, opts BuildOptions) (*intel.
 		briefing.Assemble(b)
 		if s.store != nil {
 			_ = s.store.ReplaceClusters(b.Clusters)
+			s.hydrateBreakdowns(b)
 		}
 	}
 	return b, nil
+}
+
+// hydrateBreakdowns fills ScoreBreakdown on each briefing item from
+// the persisted features snapshot. Without this the explain/why
+// commands would only see the final score — not the per-signal
+// reasoning that makes explanations useful.
+func (s *BriefingService) hydrateBreakdowns(b *intel.Briefing) {
+	ids := make([]string, len(b.Items))
+	for i, item := range b.Items {
+		ids[i] = item.Item.ID
+	}
+	features, err := s.store.ListItemFeatures(ids)
+	if err != nil || len(features) == 0 {
+		return
+	}
+	for i, item := range b.Items {
+		f, ok := features[item.Item.ID]
+		if !ok {
+			continue
+		}
+		b.Items[i].Breakdown = intel.ScoreBreakdown{
+			Freshness:     f.Signals.Freshness,
+			Authority:     f.Signals.SourceAuthority,
+			Engagement:    f.Signals.Engagement,
+			Resonance:     f.Signals.Resonance,
+			Novelty:       f.Signals.Novelty,
+			TopicMatch:    f.Signals.TopicMatch,
+			RepeatPenalty: f.Signals.RepeatPenalty,
+			ContentFit:    f.Signals.ContentFit,
+			Final:         item.Score,
+		}
+	}
 }
 
 // BuildDigest generates the current curated digest via the canonical service.
