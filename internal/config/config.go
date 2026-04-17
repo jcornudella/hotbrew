@@ -26,6 +26,15 @@ type Config struct {
 	StreamLog    string `yaml:"stream_log,omitempty"`    // path to stream.log
 
 	AI *AIConfig `yaml:"ai,omitempty"`
+
+	X *XConfig `yaml:"x,omitempty"`
+}
+
+// XConfig holds X (Twitter) API credentials. OAuth 2.0 PKCE treats the
+// client id as public, so it's safe to commit to hotbrew.yaml. The env
+// var HOTBREW_X_CLIENT_ID overrides this value when set.
+type XConfig struct {
+	ClientID string `yaml:"client_id,omitempty"`
 }
 
 // AIConfig controls optional AI-powered summary enrichment.
