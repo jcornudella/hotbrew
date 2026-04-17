@@ -76,6 +76,12 @@ func Default() *Config {
 					"max": 8,
 				},
 			},
+			"xbookmarks": {
+				Enabled: false,
+				Settings: map[string]any{
+					"max": 20,
+				},
+			},
 			"rss": {
 				Enabled: false,
 				Settings: map[string]any{
