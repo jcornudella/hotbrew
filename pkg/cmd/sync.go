@@ -103,7 +103,7 @@ func buildRegistry(cfg *config.Config) *source.Registry {
 			}
 		}
 
-		src := instantiateSource(spec)
+		src := instantiateSource(cfg, spec)
 		if src == nil {
 			continue
 		}
@@ -112,7 +112,7 @@ func buildRegistry(cfg *config.Config) *source.Registry {
 	return registry
 }
 
-func instantiateSource(spec profile.SourceSpec) source.Source {
+func instantiateSource(cfg *config.Config, spec profile.SourceSpec) source.Source {
 	switch spec.Driver {
 	case "hackernews":
 		return hackernews.New()
@@ -136,7 +136,11 @@ func instantiateSource(spec profile.SourceSpec) source.Source {
 		}
 		return arxiv.New(spec.Name, cats, spec.Icon)
 	case "xbookmarks":
-		return xbookmarks.New(spec.Name, spec.Icon)
+		var clientID string
+		if cfg.X != nil {
+			clientID = cfg.X.ClientID
+		}
+		return xbookmarks.New(spec.Name, spec.Icon).WithClientID(xbookmarks.ClientID(clientID))
 	default:
 		return nil
 	}
