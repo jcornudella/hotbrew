@@ -43,6 +43,7 @@ func New(version string) *Root {
 	r.register(&command{name: "list", aliases: []string{"ls"}, run: r.cmdList})
 	r.register(&command{name: "open", run: r.cmdOpen})
 	r.register(&command{name: "save", run: r.cmdSave})
+	r.register(&command{name: "bookmarks", run: r.cmdBookmarks})
 	r.register(&command{name: "mute", run: r.cmdMute})
 	r.register(&command{name: "boost", run: r.cmdBoost})
 	r.register(&command{name: "rules", run: r.cmdRules})

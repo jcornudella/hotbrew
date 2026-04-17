@@ -80,6 +80,13 @@ func Default() *Profile {
 				Icon:       "📄",
 				Categories: []string{"cs.CL", "cs.AI", "cs.LG", "cs.MA"},
 			},
+			{
+				Key:       "xbookmarks",
+				Driver:    "xbookmarks",
+				Name:      "X Bookmarks",
+				Icon:      "🔖",
+				ConfigKey: "xbookmarks",
+			},
 		},
 	}
 }
