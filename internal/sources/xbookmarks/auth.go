@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	authorizeURL = "https://twitter.com/i/oauth2/authorize"
-	tokenURL     = "https://api.twitter.com/2/oauth2/token"
+	authorizeURL = "https://x.com/i/oauth2/authorize"
+	tokenURL     = "https://api.x.com/2/oauth2/token"
 	redirectURI  = "http://127.0.0.1:8787/callback"
 	callbackPort = "127.0.0.1:8787"
 	scopes       = "tweet.read users.read bookmark.read offline.access"
