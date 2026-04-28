@@ -43,9 +43,9 @@ func (s *BriefingService) Build(ctx context.Context, opts BuildOptions) (*intel.
 
 	b := briefingFromDigest(digest)
 	if digest != nil && len(digest.Items) > 0 {
-		b.Clusters = clustering.Cluster(digest.Items)
+		b.Clusters = clustering.ClusterWith(ctx, digest.Items, clustering.NewLLMLabeler(s.config))
 		briefing.Assemble(b)
-		briefing.Balance(b, briefing.DefaultBalanceLimits())
+		briefing.Balance(b, balanceLimitsFromConfig(s.config))
 		if s.store != nil {
 			_ = s.store.ReplaceClusters(b.Clusters)
 			s.hydrateBreakdowns(b)
@@ -151,4 +151,21 @@ func briefingFromDigest(digest *trss.Digest) *intel.Briefing {
 		})
 	}
 	return b
+}
+
+func balanceLimitsFromConfig(cfg *config.Config) briefing.BalanceLimits {
+	limits := briefing.DefaultBalanceLimits()
+	if cfg == nil || cfg.Briefing == nil {
+		return limits
+	}
+	if cfg.Briefing.MaxClustersPerTheme > 0 {
+		limits.MaxClustersPerTheme = cfg.Briefing.MaxClustersPerTheme
+	}
+	if cfg.Briefing.MaxLeadsPerDomain > 0 {
+		limits.MaxLeadsPerDomain = cfg.Briefing.MaxLeadsPerDomain
+	}
+	if cfg.Briefing.MaxTotalClusters > 0 {
+		limits.MaxTotalClusters = cfg.Briefing.MaxTotalClusters
+	}
+	return limits
 }

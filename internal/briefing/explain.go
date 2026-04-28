@@ -34,10 +34,32 @@ type Factor struct {
 	Description string
 }
 
+// ExplainOptions carries personalization context that the briefing
+// itself doesn't store on each item — affinity scores and explicit
+// preferences live in the store, and we read them at explain time so
+// users always see the *current* learned signal, not a snapshot from
+// when the digest was scored.
+type ExplainOptions struct {
+	ThemeAffinity  map[string]float64 // theme slug → behavioral score
+	SourceAffinity map[string]float64 // source name → behavioral score
+	ThemePrefs     map[string]string  // theme slug → "follow"|"mute"
+}
+
 // Explain assembles the explanation for itemID from a briefing. It
 // returns false when the id doesn't appear in the briefing so
 // callers can surface a clean "not found" rather than empty output.
+//
+// This is the no-personalization wrapper. Use ExplainWith when the
+// caller has access to the store and wants affinity factors mixed in.
 func Explain(b *intel.Briefing, itemID string) (Explanation, bool) {
+	return ExplainWith(b, itemID, ExplainOptions{})
+}
+
+// ExplainWith is the personalization-aware variant. When opts carries
+// theme/source affinity scores and explicit theme prefs, the
+// explanation grows additional factors and the "why it matters" line
+// pulls in personal context ("you've been engaging with AI items").
+func ExplainWith(b *intel.Briefing, itemID string, opts ExplainOptions) (Explanation, bool) {
 	if b == nil || itemID == "" {
 		return Explanation{}, false
 	}
@@ -57,7 +79,8 @@ func Explain(b *intel.Briefing, itemID string) (Explanation, bool) {
 		Sources:   sources,
 		Factors:   rankFactors(item.Breakdown),
 	}
-	exp.WhyItMatters = whyItMatters(item, cluster, sources)
+	exp.Factors = appendPersonalFactors(exp.Factors, item, cluster, opts)
+	exp.WhyItMatters = whyItMattersWithPersonal(item, cluster, sources, opts)
 	exp.WhyYouSee = whyYouSee(exp.Factors)
 	return exp, true
 }
@@ -274,4 +297,131 @@ func humanDuration(d time.Duration) string {
 		return fmt.Sprintf("%dm", int(d.Minutes()))
 	}
 	return fmt.Sprintf("%dh", int(d.Hours()))
+}
+
+// appendPersonalFactors adds theme/source affinity factors derived
+// from the personalize package's snapshot. We render them as
+// "factor multipliers" on the same axis as the standard signals so
+// users see them in one ordered list — distance-from-neutral keeps
+// the strongest movers (positive or negative) at the top regardless
+// of factor type.
+func appendPersonalFactors(base []Factor, item intel.ScoredItem, cluster intel.ThemeCluster, opts ExplainOptions) []Factor {
+	out := append([]Factor{}, base...)
+
+	if score, ok := opts.ThemeAffinity[cluster.Slug]; ok && score != 0 {
+		mult := affinityToMultiplier(score)
+		out = append(out, Factor{
+			Name:        "theme affinity",
+			Multiplier:  mult,
+			Description: describeThemeAffinity(cluster.Slug, score),
+		})
+	}
+
+	if name := item.Item.SourceName; name != "" {
+		if score, ok := opts.SourceAffinity[name]; ok && score != 0 {
+			mult := affinityToMultiplier(score)
+			out = append(out, Factor{
+				Name:        "source affinity",
+				Multiplier:  mult,
+				Description: describeSourceAffinity(name, score),
+			})
+		}
+	}
+
+	if state, ok := opts.ThemePrefs[cluster.Slug]; ok && state != "" {
+		out = append(out, Factor{
+			Name:        "theme preference",
+			Multiplier:  prefMultiplier(state),
+			Description: describeThemePref(cluster.Slug, state),
+		})
+	}
+
+	sort.SliceStable(out, func(i, j int) bool {
+		return distanceFromNeutral(out[i].Multiplier) > distanceFromNeutral(out[j].Multiplier)
+	})
+	return out
+}
+
+// affinityToMultiplier maps an affinity score (≈ ±1.5 for themes/
+// sources, larger negative for muted domains) into a multiplier
+// centered at 1.0. Mirrors ranking.AffinityFactor's slope so the
+// number a user sees here matches what the ranker actually applied,
+// without importing the ranking package (which would create a cycle).
+func affinityToMultiplier(score float64) float64 {
+	const slope = 0.2
+	m := 1.0 + score*slope
+	if m < 0.5 {
+		return 0.5
+	}
+	if m > 1.5 {
+		return 1.5
+	}
+	return m
+}
+
+func prefMultiplier(state string) float64 {
+	switch state {
+	case "follow":
+		return 1.35
+	case "mute":
+		return 0.0
+	}
+	return 1.0
+}
+
+func describeThemeAffinity(slug string, score float64) string {
+	switch {
+	case score >= 1.0:
+		return fmt.Sprintf("you've been engaging with %s items lately", slug)
+	case score >= 0.3:
+		return fmt.Sprintf("you've shown interest in %s recently", slug)
+	case score <= -1.0:
+		return fmt.Sprintf("you've been ignoring %s items", slug)
+	case score <= -0.3:
+		return fmt.Sprintf("you've shown less interest in %s lately", slug)
+	default:
+		return fmt.Sprintf("learned %s affinity %+.2f", slug, score)
+	}
+}
+
+func describeSourceAffinity(name string, score float64) string {
+	switch {
+	case score >= 1.0:
+		return fmt.Sprintf("you favor %s — frequent opens and saves", name)
+	case score >= 0.3:
+		return fmt.Sprintf("you've been reading %s recently", name)
+	case score <= -1.0:
+		return fmt.Sprintf("you've been skipping %s", name)
+	default:
+		return fmt.Sprintf("source affinity %+.2f", score)
+	}
+}
+
+func describeThemePref(slug, state string) string {
+	switch state {
+	case "follow":
+		return fmt.Sprintf("you explicitly follow %s", slug)
+	case "mute":
+		return fmt.Sprintf("you explicitly muted %s — score zeroed", slug)
+	}
+	return fmt.Sprintf("theme %s state=%s", slug, state)
+}
+
+// whyItMattersWithPersonal layers personal context onto the standard
+// "why it matters" line. We only add a personal sentence when the
+// signal is strong enough to be meaningful — small positive scores
+// would feel performative ("we noticed you opened a thing") and
+// undermine trust in stronger signals.
+func whyItMattersWithPersonal(item intel.ScoredItem, cluster intel.ThemeCluster, sources []string, opts ExplainOptions) string {
+	base := whyItMatters(item, cluster, sources)
+
+	if state := opts.ThemePrefs[cluster.Slug]; state == "follow" {
+		return fmt.Sprintf("%s You follow %s.", base, cluster.Slug)
+	}
+
+	if score, ok := opts.ThemeAffinity[cluster.Slug]; ok && score >= 1.0 {
+		return fmt.Sprintf("%s You've been deep in %s lately.", base, cluster.Slug)
+	}
+
+	return base
 }

@@ -71,7 +71,13 @@ func TestBalanceTrimsPaperHeavyDay(t *testing.T) {
 	b.Clusters = append(b.Clusters, cluster("c_ai", "ai", 10.0, "ai-1"))
 	Assemble(b)
 
-	Balance(b, DefaultBalanceLimits())
+	// Pin limits explicitly so the test describes behavior at a known
+	// per-theme cap, independent of the package default.
+	Balance(b, BalanceLimits{
+		MaxClustersPerTheme: 3,
+		MaxLeadsPerDomain:   2,
+		MaxTotalClusters:    10,
+	})
 
 	papers := 0
 	ai := 0
@@ -106,7 +112,11 @@ func TestBalanceCapsHNDominatedDay(t *testing.T) {
 	}
 	Assemble(b)
 
-	Balance(b, DefaultBalanceLimits())
+	Balance(b, BalanceLimits{
+		MaxClustersPerTheme: 3,
+		MaxLeadsPerDomain:   2,
+		MaxTotalClusters:    10,
+	})
 
 	domainLeads := 0
 	for _, c := range b.Clusters {

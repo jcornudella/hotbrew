@@ -11,6 +11,7 @@ import (
 	"github.com/jcornudella/hotbrew/internal/sources/lobsters"
 	"github.com/jcornudella/hotbrew/internal/sources/reddit"
 	"github.com/jcornudella/hotbrew/internal/sources/tldr"
+	"github.com/jcornudella/hotbrew/internal/sources/xbookmarks"
 	"github.com/jcornudella/hotbrew/internal/store"
 	hsync "github.com/jcornudella/hotbrew/internal/sync"
 	"github.com/jcornudella/hotbrew/pkg/profile"
@@ -36,7 +37,7 @@ func buildRegistry(cfg *config.Config) *source.Registry {
 			}
 		}
 
-		src := instantiateSource(spec)
+		src := instantiateSource(spec, cfg)
 		if src == nil {
 			continue
 		}
@@ -45,7 +46,7 @@ func buildRegistry(cfg *config.Config) *source.Registry {
 	return registry
 }
 
-func instantiateSource(spec profile.SourceSpec) source.Source {
+func instantiateSource(spec profile.SourceSpec, cfg *config.Config) source.Source {
 	switch spec.Driver {
 	case "hackernews":
 		return hackernews.New()
@@ -68,6 +69,12 @@ func instantiateSource(spec profile.SourceSpec) source.Source {
 			cats = arxiv.DefaultCategories
 		}
 		return arxiv.New(spec.Name, cats, spec.Icon)
+	case "xbookmarks":
+		src := xbookmarks.New(spec.Name, spec.Icon)
+		if cfg != nil && cfg.X != nil && cfg.X.ClientID != "" {
+			src = src.WithClientID(cfg.X.ClientID)
+		}
+		return src
 	default:
 		return nil
 	}

@@ -40,9 +40,9 @@ type BalanceLimits struct {
 // long-read and a repo-of-the-day when the pipeline produced them.
 func DefaultBalanceLimits() BalanceLimits {
 	return BalanceLimits{
-		MaxClustersPerTheme: 3,
-		MaxLeadsPerDomain:   2,
-		MaxTotalClusters:    10,
+		MaxClustersPerTheme: 5,
+		MaxLeadsPerDomain:   3,
+		MaxTotalClusters:    20,
 		EnsureDeepRead:      true,
 		EnsureRepo:          true,
 	}

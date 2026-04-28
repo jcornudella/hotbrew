@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jcornudella/hotbrew/internal/config"
+	"github.com/jcornudella/hotbrew/internal/personalize"
 	"github.com/jcornudella/hotbrew/internal/sources/arxiv"
 	"github.com/jcornudella/hotbrew/internal/sources/github"
 	"github.com/jcornudella/hotbrew/internal/sources/hackernews"
@@ -51,6 +52,14 @@ func (r *Root) cmdSync(args []string) error {
 	hsync.PrintResults(results)
 
 	fmt.Printf("\nTotal items in store: %d\n", st.ItemCount())
+
+	// Refresh learned preferences from the event log. Quiet by default
+	// — `hotbrew learn` re-runs and prints the diff for users who
+	// want to see what was inferred.
+	if diff, err := personalize.Learn(st, personalize.Options{}); err == nil && diff.Events > 0 {
+		fmt.Printf("☕ Learned from %d recent interaction%s — `hotbrew learn` to inspect.\n",
+			diff.Events, plural(diff.Events))
+	}
 	return nil
 }
 

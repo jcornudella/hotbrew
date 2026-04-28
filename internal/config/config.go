@@ -28,6 +28,17 @@ type Config struct {
 	AI *AIConfig `yaml:"ai,omitempty"`
 
 	X *XConfig `yaml:"x,omitempty"`
+
+	Briefing *BriefingConfig `yaml:"briefing,omitempty"`
+}
+
+// BriefingConfig overrides the defaults in briefing.DefaultBalanceLimits.
+// Zero values fall back to the built-in defaults, so users only need to
+// set the knobs they want to change.
+type BriefingConfig struct {
+	MaxClustersPerTheme int `yaml:"max_clusters_per_theme,omitempty"`
+	MaxLeadsPerDomain   int `yaml:"max_leads_per_domain,omitempty"`
+	MaxTotalClusters    int `yaml:"max_total_clusters,omitempty"`
 }
 
 // XConfig holds X (Twitter) API credentials. OAuth 2.0 PKCE treats the

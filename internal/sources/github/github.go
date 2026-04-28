@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
+	"sort"
 	"time"
 
 	"github.com/jcornudella/hotbrew/pkg/source"
@@ -74,25 +74,21 @@ func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section,
 	// Time range: repos created or pushed in the last week
 	since := time.Now().AddDate(0, 0, -7).Format("2006-01-02")
 
-	// Build search query
-	var queryParts []string
-
-	// Add topic filters if specified
+	// GitHub's Search API does not parse `(topic:a OR topic:b ...)` the
+	// way you'd expect — a grouped OR across topic qualifiers returns
+	// zero results even when each clause individually matches
+	// thousands. We fan out one request per topic and merge, which
+	// also gives us a cap of len(topics) requests (≤ unauth 60/hr).
+	baseQuery := fmt.Sprintf("pushed:>%s stars:>50", since)
+	queries := []string{baseQuery}
 	if len(s.topics) > 0 {
-		topicQuery := make([]string, len(s.topics))
-		for i, topic := range s.topics {
-			topicQuery[i] = fmt.Sprintf("topic:%s", topic)
+		queries = queries[:0]
+		for _, topic := range s.topics {
+			queries = append(queries, fmt.Sprintf("topic:%s %s", topic, baseQuery))
 		}
-		queryParts = append(queryParts, "("+strings.Join(topicQuery, " OR ")+")")
 	}
 
-	// Recent activity and minimum stars
-	queryParts = append(queryParts, fmt.Sprintf("pushed:>%s", since))
-	queryParts = append(queryParts, "stars:>50")
-
-	query := strings.Join(queryParts, " ")
-
-	repos, err := searchRepos(ctx, query, maxItems)
+	repos, err := searchReposMerged(ctx, queries, maxItems)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +150,34 @@ func (s *Source) Fetch(ctx context.Context, cfg source.Config) (*source.Section,
 		Priority: 25,
 		Items:    items,
 	}, nil
+}
+
+// searchReposMerged runs each query in sequence, dedupes by repo ID,
+// sorts by stars descending, and trims to limit. Keeps the stars-sort
+// contract the Fetch code assumes, even when results span topics.
+func searchReposMerged(ctx context.Context, queries []string, limit int) ([]Repo, error) {
+	seen := make(map[int64]struct{})
+	merged := make([]Repo, 0, limit*len(queries))
+	for _, q := range queries {
+		repos, err := searchRepos(ctx, q, limit)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range repos {
+			if _, dup := seen[r.ID]; dup {
+				continue
+			}
+			seen[r.ID] = struct{}{}
+			merged = append(merged, r)
+		}
+	}
+	sort.SliceStable(merged, func(i, j int) bool {
+		return merged[i].Stars > merged[j].Stars
+	})
+	if len(merged) > limit {
+		merged = merged[:limit]
+	}
+	return merged, nil
 }
 
 func searchRepos(ctx context.Context, query string, limit int) ([]Repo, error) {

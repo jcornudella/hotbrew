@@ -54,6 +54,58 @@ func TestExplainPopulatesThemeAndSourcesFromCluster(t *testing.T) {
 	}
 }
 
+func TestExplainWithAffinityAddsThemeAndSourceFactors(t *testing.T) {
+	b := &intel.Briefing{
+		Items: []intel.ScoredItem{
+			{Item: intel.IntelItem{ID: "hn", SourceName: "Hacker News", Title: "Big launch"}, Score: 9},
+		},
+		Clusters: []intel.ThemeCluster{
+			{ID: "c1", Slug: "ai", Label: "AI", Representative: "hn", ItemIDs: []string{"hn"}, Score: 9},
+		},
+	}
+
+	opts := ExplainOptions{
+		ThemeAffinity:  map[string]float64{"ai": 1.4},
+		SourceAffinity: map[string]float64{"Hacker News": 1.2},
+		ThemePrefs:     map[string]string{"ai": "follow"},
+	}
+	exp, ok := ExplainWith(b, "hn", opts)
+	if !ok {
+		t.Fatal("expected explanation")
+	}
+
+	have := map[string]bool{}
+	for _, f := range exp.Factors {
+		have[f.Name] = true
+	}
+	for _, want := range []string{"theme affinity", "source affinity", "theme preference"} {
+		if !have[want] {
+			t.Errorf("expected factor %q in %v", want, have)
+		}
+	}
+
+	if !strings.Contains(exp.WhyItMatters, "follow ai") {
+		t.Errorf("why-it-matters should mention explicit follow: %q", exp.WhyItMatters)
+	}
+}
+
+func TestExplainWithoutAffinityIsBackwardCompatible(t *testing.T) {
+	b := &intel.Briefing{
+		Items: []intel.ScoredItem{
+			{Item: intel.IntelItem{ID: "hn", SourceName: "Hacker News", Title: "x"}, Score: 9},
+		},
+	}
+	exp, ok := Explain(b, "hn")
+	if !ok {
+		t.Fatal("expected explanation")
+	}
+	for _, f := range exp.Factors {
+		if f.Name == "theme affinity" || f.Name == "source affinity" || f.Name == "theme preference" {
+			t.Errorf("personal factor %q should not appear without opts", f.Name)
+		}
+	}
+}
+
 func TestExplainFallsBackToSingletonForUnclusteredItem(t *testing.T) {
 	b := &intel.Briefing{
 		Items: []intel.ScoredItem{

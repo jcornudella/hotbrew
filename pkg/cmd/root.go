@@ -48,6 +48,8 @@ func New(version string) *Root {
 	r.register(&command{name: "mute", run: r.cmdMute})
 	r.register(&command{name: "boost", run: r.cmdBoost})
 	r.register(&command{name: "rules", run: r.cmdRules})
+	r.register(&command{name: "learn", run: r.cmdLearn})
+	r.register(&command{name: "taste", run: r.cmdTaste})
 	r.register(&command{name: "sources", run: r.cmdSources})
 	r.register(&command{name: "curate", run: r.cmdCurate})
 	r.register(&command{name: "stream", run: r.cmdStream})

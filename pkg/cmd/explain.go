@@ -47,13 +47,30 @@ func runExplanation(args []string, format func(briefing.Explanation) string) err
 		return fmt.Errorf("no item matches %q in the current briefing", idPrefix)
 	}
 
-	exp, ok := briefing.Explain(b, id)
+	exp, ok := briefing.ExplainWith(b, id, loadExplainOptions(st))
 	if !ok {
 		return fmt.Errorf("could not explain %q", id)
 	}
 
 	fmt.Print(format(exp))
 	return nil
+}
+
+// loadExplainOptions snapshots the personalization state from the
+// store. Errors are swallowed and degrade to neutral — explainability
+// shouldn't fail just because affinity hasn't been computed yet.
+func loadExplainOptions(st *store.Store) briefing.ExplainOptions {
+	opts := briefing.ExplainOptions{}
+	if a, err := st.ListAffinity(store.AffinityKindTheme); err == nil {
+		opts.ThemeAffinity = a
+	}
+	if a, err := st.ListAffinity(store.AffinityKindSource); err == nil {
+		opts.SourceAffinity = a
+	}
+	if p, err := st.ListThemePreferences(); err == nil {
+		opts.ThemePrefs = p
+	}
+	return opts
 }
 
 // resolveItemID lets users pass a short prefix instead of the full
