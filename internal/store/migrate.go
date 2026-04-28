@@ -2,7 +2,7 @@ package store
 
 import "fmt"
 
-const currentVersion = 6
+const currentVersion = 7
 
 var migrations = []string{
 	// Version 1: initial schema
@@ -156,6 +156,22 @@ var migrations = []string{
 		state      TEXT NOT NULL CHECK(state IN ('follow','mute')),
 		updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 	);
+	`,
+	// Version 7: behavioral affinity — continuous scores per
+	// (kind, key) tuple inferred from feedback_events + item_state.
+	// Kept separate from theme_preferences so explicit user
+	// follow/mute always wins over learned behavior. Kinds are
+	// 'theme', 'source', and 'domain'.
+	`
+	CREATE TABLE IF NOT EXISTS affinity (
+		kind       TEXT NOT NULL,
+		key        TEXT NOT NULL,
+		score      REAL NOT NULL DEFAULT 0,
+		updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+		PRIMARY KEY (kind, key)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_affinity_kind ON affinity(kind);
 	`,
 }
 

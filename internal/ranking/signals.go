@@ -185,6 +185,26 @@ func ThemeMultiplier(slug string, preferences map[string]string) float64 {
 	}
 }
 
+// AffinityFactor converts a behavioral affinity score (typically in
+// [-1.5, 1.5] for themes/sources, unbounded negative for muted
+// domains) into a multiplicative factor centered at 1.0. The slope
+// is intentionally gentler than explicit FollowedThemeBoost so a
+// followed-theme always feels stronger than learned preference, but
+// behavior still nudges the briefing toward what the user engages
+// with. Output is clamped to [0.5, 1.5] so a single noisy session
+// can't swing the ranker.
+func AffinityFactor(score float64) float64 {
+	const slope = 0.2
+	f := 1.0 + score*slope
+	if f < 0.5 {
+		return 0.5
+	}
+	if f > 1.5 {
+		return 1.5
+	}
+	return f
+}
+
 // UserBoost applies tag/source boosts to a TRSS item.
 func UserBoost(item trss.Item, boosts map[string]float64) float64 {
 	if boosts == nil {

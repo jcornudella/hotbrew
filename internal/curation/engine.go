@@ -58,7 +58,7 @@ func (e *Engine) GenerateDigest(window time.Duration, maxItems int, title string
 	repeat := ranking.ComputeRepeatPenalty(deduped)
 
 	sourceWeights := e.loadSourceWeights()
-	topicBoosts := computeThemeBoosts(deduped, e.loadThemePreferences())
+	topicBoosts := e.computeThemeBoosts(deduped, e.loadThemePreferences())
 	ranked := ranking.RankItemsWith(deduped, sourceWeights, boosts, time.Now(), resonance, repeat, topicBoosts)
 	e.persistFeatures(ranked)
 
@@ -128,24 +128,56 @@ func (e *Engine) loadThemePreferences() map[string]string {
 	return prefs
 }
 
-// computeThemeBoosts labels each candidate item and turns the user's
-// preferences into a per-item multiplier. Labels are computed on
-// single-item "clusters" here — the real clustering pass runs later
-// inside briefing assembly, but for ranking we only need each item's
-// own dominant theme, not its neighborhood.
-func computeThemeBoosts(items []trss.Item, preferences map[string]string) map[string]float64 {
-	if len(items) == 0 || len(preferences) == 0 {
+// computeThemeBoosts labels each candidate item and combines the
+// user's explicit preferences with learned behavioral affinity into
+// a per-item multiplier. Explicit follow/mute always wins — affinity
+// only nudges within the explicit envelope (skipped when a theme is
+// muted, since 0 * anything = 0).
+//
+// Labels are computed on single-item "clusters" here — the real
+// clustering pass runs later inside briefing assembly, but for
+// ranking we only need each item's own dominant theme.
+func (e *Engine) computeThemeBoosts(items []trss.Item, preferences map[string]string) map[string]float64 {
+	if len(items) == 0 {
+		return nil
+	}
+	affinity := e.loadThemeAffinity()
+	if len(preferences) == 0 && len(affinity) == 0 {
 		return nil
 	}
 	out := make(map[string]float64, len(items))
 	for _, item := range items {
 		slug := clustering.LabelForItems([]trss.Item{item}).Slug
-		out[item.ID] = ranking.ThemeMultiplier(slug, preferences)
+		explicit := ranking.ThemeMultiplier(slug, preferences)
+		if explicit == 0 {
+			out[item.ID] = 0 // muted theme: stop here so behavior can't override
+			continue
+		}
+		out[item.ID] = explicit * ranking.AffinityFactor(affinity[slug])
 	}
 	return out
 }
 
-// loadSourceWeights retrieves weights from the sources table.
+// loadThemeAffinity reads the behavioral theme scores written by
+// personalize.Learn. Empty/error returns an empty map; downstream
+// treats absent keys as zero (neutral).
+func (e *Engine) loadThemeAffinity() map[string]float64 {
+	if e.Store == nil {
+		return nil
+	}
+	a, err := e.Store.ListAffinity(store.AffinityKindTheme)
+	if err != nil {
+		return nil
+	}
+	return a
+}
+
+// loadSourceWeights retrieves configured weights from the sources
+// table and blends in behavioral source affinity. Affinity acts as
+// a multiplier on top of the configured weight so an explicit
+// weight=0 still suppresses the source (admin override beats
+// learned signal), while sources the user opens often get a gentle
+// lift.
 func (e *Engine) loadSourceWeights() map[string]float64 {
 	weights := map[string]float64{}
 	sources, err := e.Store.ListSources()
@@ -156,6 +188,18 @@ func (e *Engine) loadSourceWeights() map[string]float64 {
 		if s.Weight != 0 {
 			weights[s.Name] = s.Weight
 		}
+	}
+
+	affinity, err := e.Store.ListAffinity(store.AffinityKindSource)
+	if err != nil || len(affinity) == 0 {
+		return weights
+	}
+	for name, score := range affinity {
+		base := weights[name]
+		if base == 0 {
+			base = 1.0
+		}
+		weights[name] = base * ranking.AffinityFactor(score)
 	}
 	return weights
 }
