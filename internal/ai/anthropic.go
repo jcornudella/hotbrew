@@ -170,9 +170,9 @@ type StructuredResponse struct {
 }
 
 type anthropicSystemBlock struct {
-	Type         string                  `json:"type"`
-	Text         string                  `json:"text"`
-	CacheControl *anthropicCacheControl  `json:"cache_control,omitempty"`
+	Type         string                 `json:"type"`
+	Text         string                 `json:"text"`
+	CacheControl *anthropicCacheControl `json:"cache_control,omitempty"`
 }
 
 type anthropicCacheControl struct {
@@ -203,9 +203,9 @@ type structuredResponseEnvelope struct {
 		Text string `json:"text"`
 	} `json:"content"`
 	Usage struct {
-		InputTokens             int `json:"input_tokens"`
-		OutputTokens            int `json:"output_tokens"`
-		CacheReadInputTokens    int `json:"cache_read_input_tokens"`
+		InputTokens              int `json:"input_tokens"`
+		OutputTokens             int `json:"output_tokens"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
 		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 	} `json:"usage"`
 	Error *struct {

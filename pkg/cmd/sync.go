@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jcornudella/hotbrew/internal/config"
+	"github.com/jcornudella/hotbrew/internal/personalize"
 	"github.com/jcornudella/hotbrew/internal/sources/arxiv"
 	"github.com/jcornudella/hotbrew/internal/sources/github"
 	"github.com/jcornudella/hotbrew/internal/sources/hackernews"
@@ -18,7 +19,6 @@ import (
 	"github.com/jcornudella/hotbrew/internal/sources/lobsters"
 	"github.com/jcornudella/hotbrew/internal/sources/reddit"
 	"github.com/jcornudella/hotbrew/internal/sources/tldr"
-	"github.com/jcornudella/hotbrew/internal/personalize"
 	"github.com/jcornudella/hotbrew/internal/sources/xbookmarks"
 	"github.com/jcornudella/hotbrew/internal/store"
 	hsync "github.com/jcornudella/hotbrew/internal/sync"
